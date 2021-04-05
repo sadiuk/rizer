@@ -1,0 +1,1 @@
+add_subdirectory(ex1 EXCLUDE_FROM_ALL)
