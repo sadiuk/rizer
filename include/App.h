@@ -25,6 +25,7 @@ private:
 	bool Init();
 	bool GladInit();
 	bool GlfwInit();
+	bool OpenGLInit();
 protected:
 	bool ShouldRun() const;
 	void EndScene();
