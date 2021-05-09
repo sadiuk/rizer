@@ -1,5 +1,4 @@
 #include <App.h>
-
 class RasterizerApp : App
 {
 public:
