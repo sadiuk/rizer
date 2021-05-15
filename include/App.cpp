@@ -1,7 +1,11 @@
 #include "App.h"
-
+#include <iostream>
+#include <chrono>
+#include <thread>
 App::App(const CreationParams& params) : m_params{ params }
 {
+	using namespace std::chrono_literals;
+	std::this_thread::sleep_for(5000ms);
 	if (!Init())
 	{
 		abort();
@@ -29,6 +33,7 @@ bool App::GlfwInit()
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
 	m_window = glfwCreateWindow(m_params.width, m_params.height, m_params.window_name.c_str(), nullptr, nullptr);
@@ -47,7 +52,7 @@ bool App::GlfwInit()
 bool App::OpenGLInit()
 {
 	// not my code XD
-	auto opengl_debug_callback = [](GLenum source,
+	static auto opengl_debug_callback = [](GLenum source,
 		GLenum type,
 		GLuint id,
 		GLenum severity,
@@ -145,11 +150,12 @@ bool App::OpenGLInit()
 			break;
 		}
 
+		std::cout << "a";
 		printf("%d: %s of %s severity, raised from %s: %s\n",
 			id, _type, _severity, _source, message);
 	};
-	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-	glDebugMessageCallback(opengl_debug_callback, NULL);
+	glEnable(GL_DEBUG_OUTPUT);
+	glDebugMessageCallback(opengl_debug_callback, nullptr);
 	return true;
 }
 
@@ -163,3 +169,4 @@ void App::EndScene()
 	glfwPollEvents();
 	glfwSwapBuffers(m_window);
 }
+

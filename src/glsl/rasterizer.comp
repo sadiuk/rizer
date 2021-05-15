@@ -1,0 +1,18 @@
+#version 450 core
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(std140, binding = 0) uniform RasterParams
+{
+	uvec2 texSize;
+} raster_params;
+
+layout(binding = 0, rgba8) uniform image2D out_tex;
+
+void main()
+{
+	if(all(lessThan(gl_GlobalInvocationID.xy, raster_params.texSize)))
+	{
+		imageStore(out_tex, ivec2(gl_GlobalInvocationID.xy), vec4(1, 1, 0, 1));
+	}
+}

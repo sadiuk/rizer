@@ -2,7 +2,7 @@
 
 Texture2D::Texture2D(uint32_t width, uint32_t height, GLenum tex_type)
 {
-	glGenTextures(1, &m_id);
+	glCreateTextures(GL_TEXTURE_2D, 1, &m_id);
 	glTextureStorage2D(m_id, 1, tex_type, width, height);
 	glTextureParameteri(m_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTextureParameteri(m_id, GL_TEXTURE_WRAP_T, GL_REPEAT);

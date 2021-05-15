@@ -2,10 +2,10 @@
 #include <iostream>
 #include "../fs/FileManager.h"
 
-ComputeProgram::ComputeShader::ComputeShader(const std::string_view& source)
+ComputeProgram::ComputeShader::ComputeShader(const GLchar* source)
 {
 	m_id = glCreateShader(GL_COMPUTE_SHADER);
-	glShaderSource(m_id, 1, (const char** const)source.data(), nullptr);
+	glShaderSource(m_id, 1, &source, nullptr);
 	glCompileShader(m_id);
 	
 	int success;
@@ -24,7 +24,7 @@ ComputeProgram::ComputeShader::~ComputeShader()
 
 ComputeProgram::ComputeProgram(const std::string_view& source)
 {
-	ComputeShader shader(source);
+	ComputeShader shader(source.data());
 	m_id = glCreateProgram();
 	glAttachShader(m_id, shader.GetId());
 	glLinkProgram(m_id);

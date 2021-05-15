@@ -13,6 +13,7 @@ add_library(rizer include/App.cpp
 				  include/App.h
 				  src/OpenGL/Buffer.h
 				  src/OpenGL/Buffer.cpp
+				  src/OpenGL/Program.h
 				  src/OpenGL/ComputeProgram.cpp
 				  src/OpenGL/ComputeProgram.h
 				  src/OpenGL/Texture2D.cpp
@@ -22,7 +23,9 @@ add_library(rizer include/App.cpp
 				  src/fs/FileManager.h
 				  
 				  src/GLContext.h
-				  src/GLContext.cpp)
+				  src/GLContext.cpp
+				  src/Rasterizer.h
+				  src/Rasterizer.cpp)
 
 target_include_directories(rizer PUBLIC third_party/glm third_party/glad/include third_party/glfw/include)
 

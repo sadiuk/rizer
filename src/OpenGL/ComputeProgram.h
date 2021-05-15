@@ -8,16 +8,17 @@
 
 #include "Texture2D.h"
 #include "Buffer.h"
+#include "Program.h"
 
-class ComputeProgram
+class ComputeProgram : public Program
 {
 private:
 	class ComputeShader
 	{
 		GLuint m_id;
 	public:
-		GLuint GetId() const { return m_id; }
-		ComputeShader(const std::string_view& source);
+		[[nodiscard]] GLuint GetId() const { return m_id; }
+		ComputeShader(const char* source);
 		~ComputeShader();
 	};
 
@@ -27,4 +28,5 @@ public:
 	static std::shared_ptr<ComputeProgram> CreateProgramFromFile(const std::string_view& filename);
 	ComputeProgram(const std::string_view& source);
 	~ComputeProgram();
+	[[nodiscard]] GLuint GetId() const override { return m_id; }
 };
