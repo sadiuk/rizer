@@ -4,6 +4,8 @@
 
 #include "GLContext.h"
 #include "OpenGL/Buffer.h"
+#include "OpenGL/Framebuffer.h"
+
 struct RasterizationParams
 {
 	struct alignas(16)

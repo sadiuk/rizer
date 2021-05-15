@@ -18,6 +18,8 @@ add_library(rizer include/App.cpp
 				  src/OpenGL/ComputeProgram.h
 				  src/OpenGL/Texture2D.cpp
 				  src/OpenGL/Texture2D.h
+				  src/OpenGL/Framebuffer.cpp
+				  src/OpenGL/Framebuffer.h
 				  
 				  src/fs/FileManager.cpp
 				  src/fs/FileManager.h

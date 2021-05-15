@@ -1,8 +1,9 @@
 #pragma once 
+#include <memory>
+#include <cstdint>
 
 #include <glad/glad.h>
-#include <cstdint>
-#include <memory>
+#include <glm/glm.hpp>
 
 class Texture2D
 {
@@ -14,8 +15,10 @@ public:
 	}
 
 	[[nodiscard]] GLuint GetId() const { return m_id; }
+	[[nodiscard]] glm::uvec2 GetSize() const { return m_size; }
 	~Texture2D();
 	Texture2D(uint32_t width, uint32_t height, GLenum tex_type);
 private:
 	GLuint m_id;
+	glm::uvec2 m_size;
 };

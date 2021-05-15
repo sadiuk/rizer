@@ -26,6 +26,12 @@ void GLContext::Dispatch(uint32_t x_wg_count, uint32_t y_wg_count, uint32_t z_wg
 	glDispatchCompute(x_wg_count, y_wg_count, z_wg_count);
 }
 
-void GLContext::BlitTexture(Texture2D* tex)
+void GLContext::BlitFramebuffer(Framebuffer* fbo)
 {
+	glBlitNamedFramebuffer(fbo->GetId(), 0, 
+		0, 0, fbo->GetSize().x, fbo->GetSize().y,
+		0, 0, fbo->GetSize().x, fbo->GetSize().y, 
+		GL_COLOR_BUFFER_BIT, 
+		GL_NEAREST);
 }
+
