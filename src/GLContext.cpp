@@ -35,3 +35,8 @@ void GLContext::BlitFramebuffer(Framebuffer* fbo)
 		GL_NEAREST);
 }
 
+void GLContext::PipelineBarrier(GLenum barrier)
+{
+	glMemoryBarrier(barrier);
+}
+

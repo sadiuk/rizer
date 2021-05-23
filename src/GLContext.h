@@ -25,4 +25,5 @@ public:
 
 	void BlitFramebuffer(Framebuffer* fbo);
 	
+	void PipelineBarrier(GLenum barrier);
 };

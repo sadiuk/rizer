@@ -9,10 +9,37 @@ layout(std140, binding = 0) uniform RasterParams
 
 layout(binding = 0, rgba8) uniform image2D out_tex;
 
+struct PointTriangleOrientation
+{
+	vec3 edge_function_results;
+};
+
+void TestPointInTriangle(in vec2 p1, in vec2 p2, in vec2 p3, vec2 test_point, out PointTriangleOrientation results);
+
+const vec2 point1  = vec2(0.1, 0.3), point2 = vec2(0.6, 0.5), point3 = vec2(0.9, 0.2);
+
 void main()
 {
 	if(all(lessThan(gl_GlobalInvocationID.xy, raster_params.texSize)))
 	{
-		imageStore(out_tex, ivec2(gl_GlobalInvocationID.xy), vec4(1, 1, 0, 1));
+		vec2 texelCoord = gl_GlobalInvocationID.xy / vec2(raster_params.texSize); 
+		PointTriangleOrientation orientation;
+		TestPointInTriangle(point1, point2, point3, texelCoord, orientation);
+		if(all(greaterThanEqual(orientation.edge_function_results, vec3(0, 0, 0))))
+		{
+			imageStore(out_tex, ivec2(gl_GlobalInvocationID.xy), vec4(1, 0, 1, 1));
+		}
 	}
+}
+
+float EdgeFunction(in vec2 p1, in vec2 p2, in vec2 test_point)
+{
+	return (test_point.x - p1.x) * (p2.y - p1.y) - (test_point.y - p1.y) * (p2.x - p1.x);
+}
+
+void TestPointInTriangle(in vec2 p1, in vec2 p2, in vec2 p3, vec2 test_point, out PointTriangleOrientation results)
+{
+	results.edge_function_results = vec3(EdgeFunction(p1, p2, test_point),
+										 EdgeFunction(p2, p3, test_point),
+										 EdgeFunction(p3, p1, test_point));
 }

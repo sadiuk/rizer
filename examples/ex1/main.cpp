@@ -10,13 +10,16 @@ public:
 	void Run()
 	{
 		auto context = GLContext::Get();
+
 		RasterizationParams params;
 		params.texture_width = m_params.width;
 		params.texture_height = m_params.height;
 		Rasterizer rasterizer(params);
+
 		auto out_tex = Texture2D::CreateEmptyR8G8B8A8_UNORM(params.texture_width, params.texture_height);
-		auto fbo = Framebuffer::Create();
+		auto fbo = Framebuffer::Create();	
 		fbo->AttachTexture(out_tex.get());
+		
 		while (ShouldRun())
 		{
 			rasterizer.Rasterize(out_tex.get());

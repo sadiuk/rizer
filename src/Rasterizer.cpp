@@ -14,5 +14,6 @@ void Rasterizer::Rasterize(Texture2D* out_tex)
 	m_context->BindUniformBlock(m_raster_params_ubo.get(), 0);
 	m_context->BindTexture2D(out_tex, 0);
 	m_context->Dispatch(m_params.texture_width / 16 + 1, m_params.texture_height / 16 + 1, 1);
+	m_context->PipelineBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
