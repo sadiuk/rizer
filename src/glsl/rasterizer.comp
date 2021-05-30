@@ -5,29 +5,47 @@ layout(local_size_x = 16, local_size_y = 16) in;
 layout(std140, binding = 0) uniform RasterParams
 {
 	uvec2 texSize;
+	uint vb_layout;
+	vec4 color;
 } raster_params;
 
 layout(binding = 0, rgba8) uniform image2D out_tex;
+layout(binding = 1, std430) buffer VertexBuffer
+{
+	vec2 vertices[];
+};
+layout(binding = 2, std430) buffer IndexBuffer
+{
+	uvec3 indices[];
+};
 
 struct PointTriangleOrientation
 {
 	vec3 edge_function_results;
+	vec3 barycentrics;
 };
 
 void TestPointInTriangle(in vec2 p1, in vec2 p2, in vec2 p3, vec2 test_point, out PointTriangleOrientation results);
 
-const vec2 point1  = vec2(0.1, 0.3), point2 = vec2(0.6, 0.5), point3 = vec2(0.9, 0.2);
 
 void main()
 {
 	if(all(lessThan(gl_GlobalInvocationID.xy, raster_params.texSize)))
 	{
-		vec2 texelCoord = gl_GlobalInvocationID.xy / vec2(raster_params.texSize); 
+		vec2 texelCoord = (gl_GlobalInvocationID.xy / vec2(raster_params.texSize) - 0.5) * 2; 
 		PointTriangleOrientation orientation;
-		TestPointInTriangle(point1, point2, point3, texelCoord, orientation);
-		if(all(greaterThanEqual(orientation.edge_function_results, vec3(0, 0, 0))))
+		uint indices_count = indices.length();
+		for(uint i = 0; i < indices_count + 1; i++)
 		{
-			imageStore(out_tex, ivec2(gl_GlobalInvocationID.xy), vec4(1, 0, 1, 1));
+			uvec3 triangle_indices = indices[i];
+			vec2 p1 = vertices[triangle_indices[0]];
+			vec2 p2 = vertices[triangle_indices[1]];
+			vec2 p3 = vertices[triangle_indices[2]];
+			TestPointInTriangle(p1, p2, p3, texelCoord, orientation);
+			if(all(greaterThanEqual(orientation.edge_function_results, vec3(0, 0, 0))))
+			{
+				imageStore(out_tex, ivec2(gl_GlobalInvocationID.xy), vec4(orientation.barycentrics, 1));
+			}
 		}
 	}
 }
@@ -42,4 +60,6 @@ void TestPointInTriangle(in vec2 p1, in vec2 p2, in vec2 p3, vec2 test_point, ou
 	results.edge_function_results = vec3(EdgeFunction(p1, p2, test_point),
 										 EdgeFunction(p2, p3, test_point),
 										 EdgeFunction(p3, p1, test_point));
+	vec3 triangle_area = vec3(EdgeFunction(p1, p2, p3));
+	results.barycentrics = abs(results.edge_function_results / triangle_area);
 }

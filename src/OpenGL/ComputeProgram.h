@@ -26,6 +26,7 @@ private:
 	GLuint m_id;
 public:
 	static std::shared_ptr<ComputeProgram> CreateProgramFromFile(const std::string_view& filename);
+	static std::shared_ptr<ComputeProgram> CreateProgramFromSource(const std::string_view& filename);
 	ComputeProgram(const std::string_view& source);
 	~ComputeProgram();
 	[[nodiscard]] GLuint GetId() const override { return m_id; }
