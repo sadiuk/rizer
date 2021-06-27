@@ -35,7 +35,7 @@ void main()
 		vec2 texelCoord = (gl_GlobalInvocationID.xy / vec2(raster_params.texSize) - 0.5) * 2; 
 		PointTriangleOrientation orientation;
 		uint indices_count = indices.length();
-		for(uint i = 0; i < indices_count + 1; i++)
+		for(uint i = 0; i < indices_count; i++)
 		{
 			uvec3 triangle_indices = indices[i];
 			vec2 p1 = vertices[triangle_indices[0]];

@@ -40,7 +40,6 @@ ComputeProgram::ComputeProgram(const std::string_view& source)
 	glUseProgram(m_id);
 }
 
-template<typename ...Args>
 std::shared_ptr<ComputeProgram> ComputeProgram::CreateProgramFromFile(const std::string_view& filename)
 {
 	auto file_content = fs::FileManager::GetFileContent(filename);

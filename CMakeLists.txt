@@ -27,9 +27,7 @@ add_library(rizer include/App.cpp
 				  src/GLContext.h
 				  src/GLContext.cpp
 				  src/Rasterizer.h
-				  src/Rasterizer.cpp
-				  src/VertexBuffer.h
-				  src/VertexBuffer.cpp)
+				  src/Rasterizer.cpp)
 
 target_include_directories(rizer PUBLIC third_party/glm third_party/glad/include third_party/glfw/include)
 
