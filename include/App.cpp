@@ -17,9 +17,10 @@ bool App::Init()
 	bool glfw = GlfwInit();
 	bool glad = GladInit();
 	bool opengl = OpenGLInit();
+	bool imgui = ImguiInit();
 	glViewport(0, 0, m_params.width, m_params.height);
 
-	return glfw && glad && opengl;
+	return glfw && glad && opengl && imgui;
 }
 
 bool App::GladInit()
@@ -32,7 +33,7 @@ bool App::GlfwInit()
 {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 	glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
@@ -64,7 +65,7 @@ bool App::OpenGLInit()
 		char* _type;
 		char* _severity;
 
-		switch (source) {
+ 		switch (source) {
 		case GL_DEBUG_SOURCE_API:
 			_source = "API";
 			break;
@@ -159,14 +160,44 @@ bool App::OpenGLInit()
 	return true;
 }
 
+bool App::ImguiInit()
+{
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+	//ImGui::StyleColorsClassic();
+
+	// Setup Platform/Renderer backends
+	bool ok = true;
+	ok |= ImGui_ImplGlfw_InitForOpenGL(m_window, true);
+	const char* glsl_version = "#version 450";
+	ok |= ImGui_ImplOpenGL3_Init(glsl_version);
+	return ok;
+}
+
 bool App::ShouldRun() const
 {
 	return !glfwWindowShouldClose(m_window);
 }
 
-void App::EndScene()
+void App::BeginScene()
 {
 	glfwPollEvents();
+	glClear(GL_COLOR_BUFFER_BIT);
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+}
+
+void App::EndScene()
+{
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 	glfwSwapBuffers(m_window);
 }
 

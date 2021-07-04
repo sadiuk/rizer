@@ -38,10 +38,17 @@ public:
 		
 		auto vertex_buffer = SSBO::Create(vertices, sizeof vertices);
 		auto index_buffer = SSBO::Create(indices, sizeof indices);
+		
 		while (ShouldRun())
 		{
+			BeginScene();
 			rasterizer.Rasterize(vertex_buffer.get(), index_buffer.get(), out_tex.get());
 			context->BlitFramebuffer(fbo.get());
+			bool test = true;
+			ImGui::Begin("Hi");
+			ImGui::End();
+			ImGui::ShowDemoWindow(&test);
+			
 			EndScene();
 		}
 	}
@@ -49,8 +56,8 @@ public:
 
 int main()
 {
-	RasterizerApp app(CreationParams{ 700, 400, "Demo App" });
+	RasterizerApp app(CreationParams{ 1920, 1080, "Demo App" });
 	app.Run();
 }
 
-//extern "C" {  _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001; }
+extern "C" {  _declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001; }

@@ -5,7 +5,7 @@ Rasterizer::Rasterizer(const RasterizationParams& params) : m_params(params)
 	m_context = GLContext::Get();
 	m_raster_params_ubo = UBO::Create(&m_params, sizeof(m_params));
 	//TODO: relative path
-	m_program = ComputeProgram::CreateProgramFromFile("D:/dev/Rasterizer/src/glsl/rasterizer.comp");
+	m_program = ComputeProgram::CreateProgramFromFile("C:/dev/rizer/src/glsl/rasterizer.comp");
 }
 
 void Rasterizer::Rasterize(SSBO* vertex_buffer, SSBO* index_buffer, Texture2D* out_tex)

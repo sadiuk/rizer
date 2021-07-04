@@ -29,6 +29,6 @@ add_library(rizer include/App.cpp
 				  src/Rasterizer.h
 				  src/Rasterizer.cpp)
 
-target_include_directories(rizer PUBLIC third_party/glm third_party/glad/include third_party/glfw/include)
+target_include_directories(rizer PUBLIC third_party/glm third_party/glad/include third_party/glfw/include third_party/imgui)
 
-target_link_libraries(rizer glad glfw)
+target_link_libraries(rizer glad glfw imgui)

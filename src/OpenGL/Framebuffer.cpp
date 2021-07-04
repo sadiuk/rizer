@@ -3,7 +3,7 @@
 
 Framebuffer::Framebuffer()
 {
-	glGenFramebuffers(1, &m_id);
+	glCreateFramebuffers(1, &m_id);
 }
 
 void Framebuffer::AttachTexture(Texture2D* attachment)

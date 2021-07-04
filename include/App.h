@@ -6,6 +6,10 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
 struct CreationParams
 {
 	//CreationParams(const CreationParams& other) : width{ other.width }, height{ other.height }, window_name{ name } {}
@@ -27,8 +31,10 @@ private:
 	bool GladInit();
 	bool GlfwInit();
 	bool OpenGLInit();
+	bool ImguiInit();
 protected:
 	bool ShouldRun() const;
+	void BeginScene();
 	void EndScene();
 protected:
 	CreationParams m_params;
