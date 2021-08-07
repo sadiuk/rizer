@@ -61,9 +61,9 @@ bool App::OpenGLInit()
 		const GLchar* message,
 		const void* userParam)
 	{
-		char* _source;
-		char* _type;
-		char* _severity;
+		const char* _source;
+		const char* _type;
+		const char* _severity;
 
  		switch (source) {
 		case GL_DEBUG_SOURCE_API:

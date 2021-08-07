@@ -1,4 +1,5 @@
 #include <App.h>
+#include <../src/fs/FileManager.h>
 #include "../src/Rasterizer.h"
 #include "../src/OpenGL/Framebuffer.h"
 #include <wtypes.h>
@@ -13,42 +14,51 @@ public:
 		auto context = GLContext::Get();
 
 		RasterizationParams params;
-		params.texture_width = m_params.width;
-		params.texture_height = m_params.height;
-		params.vertex_buffer_layout = VertexBufferLayout::POSR8G8B8A8;
 		Rasterizer rasterizer(params);
 
-		auto out_tex = Texture2D::CreateEmptyR8G8B8A8_UNORM(params.texture_width, params.texture_height);
+		RasterizationDynamicParams dynamicParams;
+		dynamicParams.texture_width = m_params.width;
+		dynamicParams.texture_height = m_params.height;
+		dynamicParams.vertex_buffer_layout = VertexBufferLayout::POSR8G8B8A8;
+
+		auto out_tex = Texture2D::CreateEmptyR8G8B8A8_UNORM(dynamicParams.texture_width, dynamicParams.texture_height);
 		auto fbo = Framebuffer::Create();
 		fbo->AttachTexture(out_tex.get());
 
-		glm::vec2 vertices[6] = { 
-			glm::vec2{-0.5, -0.5}, 
-			glm::vec2{-0.4,  0.5},
-			glm::vec2{-0.3, -0.5},
-			glm::vec2{0, -0.5},
-			glm::vec2{0.1,  0.5},
-			glm::vec2{0.2, -0.5}
+		struct alignas(16) vec3
+		{
+			float x, y, z;
+		};
+		vec3 vertices[6] = {
+			vec3{-0.5, -0.5, -0.1},
+			vec3{-0.4,  0.5, -0.5},
+			vec3{0.5, -0.5, -0.5},
+			vec3{0, -0.5, -0.9},
+			vec3{0.1,  0.5, -0.05},
+			vec3{0.2, -0.5, -0.2}
 		};
 		struct alignas(16) uvec3
 		{
 			uint32_t x, y, z;
 		};
 		uvec3 indices[2] = { uvec3{ 0, 1, 2 }, uvec3{3, 4, 5 } };
-		
+
 		auto vertex_buffer = SSBO::Create(vertices, sizeof vertices);
 		auto index_buffer = SSBO::Create(indices, sizeof indices);
-		
 		while (ShouldRun())
 		{
+			auto depth_buffer = SSBO::Create(nullptr, dynamicParams.texture_width * dynamicParams.texture_height * sizeof(float));
 			BeginScene();
-			rasterizer.Rasterize(vertex_buffer.get(), index_buffer.get(), out_tex.get());
+			rasterizer.Rasterize(vertex_buffer.get(), index_buffer.get(), out_tex.get(), dynamicParams, depth_buffer.get());
 			context->BlitFramebuffer(fbo.get());
 			bool test = true;
-			ImGui::Begin("Hi");
+			ImGui::Begin("Rasterization Params");
+			ImGui::ColorEdit3("Clear Color", (float*)&dynamicParams.clear_color);
+			ImGui::Checkbox("Enable Depth Test", &dynamicParams.enable_depth_test);
+			ImGui::Checkbox("Update Depth Buffer", &dynamicParams.update_depth_buffer);
 			ImGui::End();
 			ImGui::ShowDemoWindow(&test);
-			
+
 			EndScene();
 		}
 	}

@@ -9,13 +9,13 @@ class SSBO
 {
 	GLuint m_id;
 	SSBO(void* data, uint32_t size);
-
 public:
 	[[nodiscard]] GLuint GetId() const { return m_id; }
 	static std::shared_ptr<SSBO> Create(void* data, uint32_t size)
 	{
 		return std::shared_ptr<SSBO>(new SSBO(data, size));
 	}
+	~SSBO();
 };
 
 class UBO
@@ -28,4 +28,5 @@ public:
 	{
 		return std::shared_ptr<UBO>(new UBO(data, size));
 	}
+	~UBO();
 };
