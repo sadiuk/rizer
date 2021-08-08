@@ -10,8 +10,14 @@ Rasterizer::Rasterizer(const RasterizationParams& params) : m_static_params(para
 void Rasterizer::Rasterize(SSBO* vertex_buffer, SSBO* index_buffer, Texture2D* out_tex, const RasterizationDynamicParams& params, SSBO* depth_buffer)
 {
 	m_dynamic_params = params;
-	m_raster_params_ubo = UBO::Create(&m_dynamic_params, sizeof(m_dynamic_params));
-
+	if (m_raster_params_ubo == nullptr)
+	{
+		m_raster_params_ubo = UBO::Create(&m_dynamic_params, sizeof(m_dynamic_params));
+	}
+	else
+	{
+		m_raster_params_ubo->Update(&m_dynamic_params, sizeof(m_dynamic_params));
+	}
 	m_context->BindComputeProgram (m_program.get());
 	m_context->BindUniformBlock(m_raster_params_ubo.get(), 0);
 	m_context->BindTexture2D(out_tex, 0);

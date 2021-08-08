@@ -16,4 +16,6 @@ public:
 		return std::shared_ptr<Framebuffer>(new Framebuffer());
 	}
 	void AttachTexture(Texture2D* attachment);
+	void Bind();
+	void Unbind();
 };

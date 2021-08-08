@@ -24,6 +24,7 @@ class UBO
 	UBO(void* data, uint32_t size);
 public:
 	[[nodiscard]] GLuint GetId() const { return m_id; }
+	void Update(void* data, uint32_t size);
 	static std::shared_ptr<UBO> Create(void* data, uint32_t size)
 	{
 		return std::shared_ptr<UBO>(new UBO(data, size));

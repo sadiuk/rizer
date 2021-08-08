@@ -24,18 +24,17 @@ public:
 		auto out_tex = Texture2D::CreateEmptyR8G8B8A8_UNORM(dynamicParams.texture_width, dynamicParams.texture_height);
 		auto fbo = Framebuffer::Create();
 		fbo->AttachTexture(out_tex.get());
-
 		struct alignas(16) vec3
 		{
 			float x, y, z;
 		};
 		vec3 vertices[6] = {
-			vec3{-0.5, -0.5, -0.1},
-			vec3{-0.4,  0.5, -0.5},
-			vec3{0.5, -0.5, -0.5},
-			vec3{0, -0.5, -0.9},
-			vec3{0.1,  0.5, -0.05},
-			vec3{0.2, -0.5, -0.2}
+			vec3{-0.5, -0.5, -0.1 },
+			vec3{-0.4,  0.5, -0.5 },
+			vec3{0.5, -0.5, -0.5 },
+			vec3{0, -0.5, -0.9 },
+			vec3{0.1,  0.5, -0.05 },
+			vec3{0.2, -0.5, -0.2 }
 		};
 		struct alignas(16) uvec3
 		{
@@ -45,20 +44,25 @@ public:
 
 		auto vertex_buffer = SSBO::Create(vertices, sizeof vertices);
 		auto index_buffer = SSBO::Create(indices, sizeof indices);
+		bool enable_depth_testing = false, update_depth_buffer = false;
+		auto depth_buffer = SSBO::Create(nullptr, dynamicParams.texture_width * dynamicParams.texture_height * sizeof(float));
 		while (ShouldRun())
 		{
-			auto depth_buffer = SSBO::Create(nullptr, dynamicParams.texture_width * dynamicParams.texture_height * sizeof(float));
 			BeginScene();
-			rasterizer.Rasterize(vertex_buffer.get(), index_buffer.get(), out_tex.get(), dynamicParams, depth_buffer.get());
-			context->BlitFramebuffer(fbo.get());
-			bool test = true;
+			context->clearSSBO(depth_buffer.get());
+
 			ImGui::Begin("Rasterization Params");
 			ImGui::ColorEdit3("Clear Color", (float*)&dynamicParams.clear_color);
-			ImGui::Checkbox("Enable Depth Test", &dynamicParams.enable_depth_test);
-			ImGui::Checkbox("Update Depth Buffer", &dynamicParams.update_depth_buffer);
+			ImGui::Checkbox("Enable Depth Test", &enable_depth_testing);
+			ImGui::Checkbox("Update Depth Buffer", &update_depth_buffer);
 			ImGui::End();
-			ImGui::ShowDemoWindow(&test);
+			//enable_depth_testing = !enable_depth_testing;
+			//update_depth_buffer = !update_depth_buffer;
+			dynamicParams.enable_depth_test = enable_depth_testing;
+			dynamicParams.update_depth_buffer = update_depth_buffer;
 
+			rasterizer.Rasterize(vertex_buffer.get(), index_buffer.get(), out_tex.get(), dynamicParams, depth_buffer.get());
+			context->BlitFramebuffer(fbo.get());
 			EndScene();
 		}
 	}

@@ -26,8 +26,8 @@ struct alignas(16) RasterizationDynamicParams
 	glm::vec4 alignas(16) color = glm::vec4(0, 1, 1, 1); // The default color in case vertex_buffer_layout is POSR8G8B8A8
 	glm::vec3 alignas(16) clear_color = glm::vec3(1, 1, 1);
 
-	bool enable_depth_test = true;
-	bool update_depth_buffer = true;
+	uint32_t enable_depth_test = 1;
+	uint32_t update_depth_buffer = 1;
 };
 
 class Rasterizer

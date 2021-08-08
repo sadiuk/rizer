@@ -40,3 +40,8 @@ void GLContext::PipelineBarrier(GLenum barrier)
 	glMemoryBarrier(barrier);
 }
 
+void GLContext::clearSSBO(SSBO* buff)
+{
+	glClearNamedBufferData(buff->GetId(), GL_R32F, GL_RED, GL_FLOAT, nullptr);
+}
+

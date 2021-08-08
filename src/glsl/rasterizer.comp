@@ -8,6 +8,8 @@ layout(std140, binding = 0) uniform RasterParams
 	uint vb_layout;
 	vec4 color;
 	vec3 clear_color;
+	bool enable_depth_testing;
+	bool update_depth_buffer;
 } raster_params;
 
 layout(binding = 0, rgba8) uniform image2D out_tex;
@@ -39,7 +41,10 @@ void main()
 	if(all(lessThan(gl_GlobalInvocationID.xy, raster_params.texSize)))
 	{
 		vec2 texelCoord = (gl_GlobalInvocationID.xy / vec2(raster_params.texSize) - 0.5) * 2; 
+		uint buffer_coord = gl_GlobalInvocationID.y * raster_params.texSize.x + gl_GlobalInvocationID.x;
+
 		PointTriangleOrientation orientation;
+
 		uint indices_count = indices.length();
 		bool pixel_is_covered = false;
 		vec4 out_color = vec4(raster_params.color);
@@ -53,7 +58,10 @@ void main()
 			if(all(greaterThanEqual(orientation.edge_function_results, vec3(0, 0, 0))))
 			{
 				pixel_is_covered = true;
-				bool passed = PerformDepthTest(gl_GlobalInvocationID.xy, orientation.current_z, true);
+				if(raster_params.enable_depth_testing)
+				{
+					PerformDepthTest(gl_GlobalInvocationID.xy, orientation.current_z, raster_params.update_depth_buffer);
+				}
 			}
 		}
 		if(!pixel_is_covered)
@@ -62,7 +70,6 @@ void main()
 		}
 		else 
 		{
-			uint buffer_coord = gl_GlobalInvocationID.y * raster_params.texSize.x + gl_GlobalInvocationID.x;
 			imageStore(out_tex, ivec2(gl_GlobalInvocationID.xy), vec4(abs(depthBuffer[buffer_coord])));
 		}
 	}
@@ -77,7 +84,7 @@ bool PerformDepthTest(uvec2 int_coord, float depth, bool update_depth_buffer)
 	{
 		depth_test_passed = true;
 	}
-	if(update_depth_buffer && depth_test_passed)
+	if(update_depth_buffer)
 	{
 		depthBuffer[buffer_coord] = depth;
 	}
