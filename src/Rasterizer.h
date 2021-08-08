@@ -16,13 +16,12 @@ enum class VertexBufferLayout : uint32_t {
 
 struct RasterizationParams
 {
-	
+	VertexBufferLayout vertex_buffer_layout;
 };
 
 struct alignas(16) RasterizationDynamicParams
 {
 	uint32_t texture_width, texture_height;
-	VertexBufferLayout vertex_buffer_layout;
 	glm::vec4 alignas(16) color = glm::vec4(0, 1, 1, 1); // The default color in case vertex_buffer_layout is POSR8G8B8A8
 	glm::vec3 alignas(16) clear_color = glm::vec3(1, 1, 1);
 
@@ -38,6 +37,8 @@ public:
 
 	void Rasterize(SSBO* vertex_buffer, SSBO* index_buffer, Texture2D* out_tex, const RasterizationDynamicParams& params, SSBO* depth_buffer = nullptr);
 	void SetRasterizationParams(const RasterizationParams& params);
+private:
+	void CompileShaderWithStaticParams();
 private:
 	RasterizationParams m_static_params;
 	RasterizationDynamicParams m_dynamic_params;

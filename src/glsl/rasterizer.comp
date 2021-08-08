@@ -1,11 +1,21 @@
 #version 450 core
+#define VERTEX_BUFFER_LAYOUT %d
+
+struct vertex
+{
+#if VERTEX_BUFFER_LAYOUT == 1
+	vec3 pos;
+#elif VERTEX_BUFFER_LAYOUT == 2
+	vec3 pos;
+	vec4 color;
+#endif
+};
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(std140, binding = 0) uniform RasterParams
 {
 	uvec2 texSize;
-	uint vb_layout;
 	vec4 color;
 	vec3 clear_color;
 	bool enable_depth_testing;
@@ -15,7 +25,7 @@ layout(std140, binding = 0) uniform RasterParams
 layout(binding = 0, rgba8) uniform image2D out_tex;
 layout(binding = 1, std430) buffer VertexBuffer
 {
-	vec3 vertices[];
+	vertex vertices[];
 };
 layout(binding = 2, std430) buffer IndexBuffer
 {
@@ -35,7 +45,7 @@ struct PointTriangleOrientation
 
 void TestPointInTriangle(in vec3 p1, in vec3 p2, in vec3 p3, vec2 test_point, out PointTriangleOrientation results);
 bool PerformDepthTest(uvec2 int_coord, float depth, bool updateDepthBuffer);
-
+void UpdateOutColor(in uint triangle_index, out vec4 color);
 void main()
 {
 	if(all(lessThan(gl_GlobalInvocationID.xy, raster_params.texSize)))
@@ -51,16 +61,24 @@ void main()
 		for(uint i = 0; i < indices_count; i++)
 		{
 			uvec3 triangle_indices = indices[i];
-			vec3 p1 = vertices[triangle_indices[0]];
-			vec3 p2 = vertices[triangle_indices[1]];
-			vec3 p3 = vertices[triangle_indices[2]];
+			vec3 p1 = vertices[triangle_indices[0]].pos;
+			vec3 p2 = vertices[triangle_indices[1]].pos;
+			vec3 p3 = vertices[triangle_indices[2]].pos;
 			TestPointInTriangle(p1, p2, p3, texelCoord, orientation);
 			if(all(greaterThanEqual(orientation.edge_function_results, vec3(0, 0, 0))))
 			{
 				pixel_is_covered = true;
 				if(raster_params.enable_depth_testing)
 				{
-					PerformDepthTest(gl_GlobalInvocationID.xy, orientation.current_z, raster_params.update_depth_buffer);
+					if(PerformDepthTest(gl_GlobalInvocationID.xy, orientation.current_z, raster_params.update_depth_buffer))
+					{
+						vec4 c1, c2, c3;
+						UpdateOutColor(triangle_indices[0], c1);
+						UpdateOutColor(triangle_indices[1], c2);
+						UpdateOutColor(triangle_indices[2], c3);
+						vec3 er = orientation.edge_function_results;
+						out_color = c1 * er.x + c2 * er.y + c3 * er.z;
+					}
 				}
 			}
 		}
@@ -70,11 +88,19 @@ void main()
 		}
 		else 
 		{
-			imageStore(out_tex, ivec2(gl_GlobalInvocationID.xy), vec4(abs(depthBuffer[buffer_coord])));
+			imageStore(out_tex, ivec2(gl_GlobalInvocationID.xy), out_color);
 		}
 	}
 }
 
+void UpdateOutColor(in uint triangle_index, out vec4 color)
+{
+#if VERTEX_BUFFER_LAYOUT == 1
+	color = raster_params.color;
+#elif VERTEX_BUFFER_LAYOUT == 2
+	color = vertices[triangle_index].color;
+#endif
+}
 bool PerformDepthTest(uvec2 int_coord, float depth, bool update_depth_buffer)
 {
 	uint buffer_coord = int_coord.y * raster_params.texSize.x + int_coord.x;

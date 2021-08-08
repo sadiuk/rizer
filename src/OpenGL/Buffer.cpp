@@ -26,3 +26,8 @@ void UBO::Update(void* data, uint32_t size)
 {
 	glNamedBufferData(m_id, size, data, GL_STATIC_DRAW);
 }
+
+void SSBO::Update(void* data, uint32_t size)
+{
+	glNamedBufferData(m_id, size, data, GL_STATIC_DRAW);
+}

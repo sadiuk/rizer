@@ -9,6 +9,8 @@
 #include "Texture2D.h"
 #include "Buffer.h"
 #include "Program.h"
+#include "../fs/FileManager.h"
+
 
 class ComputeProgram : public Program
 {
@@ -26,7 +28,13 @@ private:
 	GLuint m_id;
 public:
 	static std::shared_ptr<ComputeProgram> CreateProgramFromFile(const std::string_view& filename);
-	static std::shared_ptr<ComputeProgram> CreateProgramFromSource(const std::string_view& filename);
+	template<typename ...Args>
+	static std::shared_ptr<ComputeProgram> CreateProgramFromFileWithParams(const std::string_view& filename, Args&&... args)
+	{
+		auto file_content = fs::FileManager::GetFileContent(filename);
+		std::string filled_src = fs::FileManager::FillStringWithData(file_content, std::forward<Args>(args)...);
+		return std::shared_ptr<ComputeProgram>(new ComputeProgram(filled_src));
+	}
 	ComputeProgram(const std::string_view& source);
 	~ComputeProgram();
 	[[nodiscard]] GLuint GetId() const override { return m_id; }

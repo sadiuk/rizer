@@ -15,6 +15,7 @@ public:
 	{
 		return std::shared_ptr<SSBO>(new SSBO(data, size));
 	}
+	void Update(void* data, uint32_t size);
 	~SSBO();
 };
 

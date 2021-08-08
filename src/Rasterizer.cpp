@@ -4,7 +4,12 @@ Rasterizer::Rasterizer(const RasterizationParams& params) : m_static_params(para
 {
 	m_context = GLContext::Get();
 	//TODO: relative path
-	m_program = ComputeProgram::CreateProgramFromFile("C:/dev/rizer/src/glsl/rasterizer.comp");
+	CompileShaderWithStaticParams();
+}
+
+void Rasterizer::CompileShaderWithStaticParams()
+{
+	m_program = ComputeProgram::CreateProgramFromFileWithParams("C:/dev/rizer/src/glsl/rasterizer.comp", (int)m_static_params.vertex_buffer_layout);
 }
 
 void Rasterizer::Rasterize(SSBO* vertex_buffer, SSBO* index_buffer, Texture2D* out_tex, const RasterizationDynamicParams& params, SSBO* depth_buffer)

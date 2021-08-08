@@ -48,10 +48,6 @@ std::shared_ptr<ComputeProgram> ComputeProgram::CreateProgramFromFile(const std:
 	return std::make_shared<ComputeProgram>(file_content);
 }
 
-std::shared_ptr<ComputeProgram> ComputeProgram::CreateProgramFromSource(const std::string_view& filename)
-{
-	return std::shared_ptr<ComputeProgram>();
-}
 
 ComputeProgram::~ComputeProgram()
 {
