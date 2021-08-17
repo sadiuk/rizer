@@ -15,6 +15,8 @@ layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(std140, binding = 0) uniform RasterParams
 {
+	mat4 proj;	
+	mat4 view;
 	uvec2 texSize;
 	vec4 color;
 	vec3 clear_color;
@@ -52,20 +54,27 @@ void main()
 	{
 		vec2 texelCoord = (gl_GlobalInvocationID.xy / vec2(raster_params.texSize) - 0.5) * 2; 
 		uint buffer_coord = gl_GlobalInvocationID.y * raster_params.texSize.x + gl_GlobalInvocationID.x;
-
+		depthBuffer[buffer_coord] = -1000;
+	
 		PointTriangleOrientation orientation;
 
 		uint indices_count = indices.length();
 		bool pixel_is_covered = false;
-		vec4 out_color = vec4(raster_params.color);
+		vec4 out_color = raster_params.color;
 		for(uint i = 0; i < indices_count; i++)
 		{
 			uvec3 triangle_indices = indices[i];
-			vec3 p1 = vertices[triangle_indices[0]].pos;
-			vec3 p2 = vertices[triangle_indices[1]].pos;
-			vec3 p3 = vertices[triangle_indices[2]].pos;
+			vec4 p1_before_perspective = (raster_params.proj * raster_params.view * vec4(vertices[triangle_indices[0]].pos, 1));
+			vec4 p2_before_perspective = (raster_params.proj * raster_params.view * vec4(vertices[triangle_indices[1]].pos, 1));
+			vec4 p3_before_perspective = (raster_params.proj * raster_params.view * vec4(vertices[triangle_indices[2]].pos, 1));
+			vec3 p1 = p1_before_perspective.xyz / p1_before_perspective.w;
+			vec3 p2 = p2_before_perspective.xyz / p2_before_perspective.w;
+			vec3 p3 = p3_before_perspective.xyz / p3_before_perspective.w;
 			TestPointInTriangle(p1, p2, p3, texelCoord, orientation);
-			if(all(greaterThanEqual(orientation.edge_function_results, vec3(0, 0, 0))))
+			//out_color = vec4(orientation.edge_function_results, 1);
+							//pixel_is_covered = true;
+
+			if(all(lessThanEqual(orientation.barycentrics, vec3(1, 1, 1))) && all(greaterThanEqual(orientation.barycentrics, vec3(0))))
 			{
 				pixel_is_covered = true;
 				if(raster_params.enable_depth_testing)
@@ -76,8 +85,8 @@ void main()
 						UpdateOutColor(triangle_indices[0], c1);
 						UpdateOutColor(triangle_indices[1], c2);
 						UpdateOutColor(triangle_indices[2], c3);
-						vec3 er = orientation.edge_function_results;
-						out_color = c1 * er.x + c2 * er.y + c3 * er.z;
+						vec3 er = orientation.barycentrics;
+						out_color = vec4((c1 * er.x + c2 * er.y + c3 * er.z).xyz, 1);
 					}
 				}
 			}
@@ -106,7 +115,7 @@ bool PerformDepthTest(uvec2 int_coord, float depth, bool update_depth_buffer)
 	uint buffer_coord = int_coord.y * raster_params.texSize.x + int_coord.x;
 	float current_depth = depthBuffer[buffer_coord];
 	bool depth_test_passed = false;
-	if(isnan(current_depth) || depth < current_depth)
+	if(depth > current_depth)
 	{
 		depth_test_passed = true;
 	}
@@ -124,11 +133,11 @@ float EdgeFunction(in vec2 p1, in vec2 p2, in vec2 test_point)
 
 void TestPointInTriangle(in vec3 p1, in vec3 p2, in vec3 p3, vec2 test_point, out PointTriangleOrientation results)
 {
-	results.edge_function_results = vec3(EdgeFunction(p1.xy, p2.xy, test_point),
-										 EdgeFunction(p2.xy, p3.xy, test_point),
-										 EdgeFunction(p3.xy, p1.xy, test_point));
+	results.edge_function_results = vec3(EdgeFunction(p2.xy, p3.xy, test_point),
+										 EdgeFunction(p3.xy, p1.xy, test_point),
+										 EdgeFunction(p1.xy, p2.xy, test_point));
 	vec3 triangle_area = vec3(EdgeFunction(p1.xy, p2.xy, p3.xy));
-	results.barycentrics = abs(results.edge_function_results / triangle_area);
+	results.barycentrics = (results.edge_function_results / triangle_area);
 	vec3 b = results.barycentrics;
 	results.current_z = 1. / (1 / p1.z * b[0] + 1 / p2.z * b[1] + 1 / p3.z * b[2]); 
 

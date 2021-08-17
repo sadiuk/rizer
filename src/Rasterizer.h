@@ -21,6 +21,8 @@ struct RasterizationParams
 
 struct alignas(16) RasterizationDynamicParams
 {
+	glm::mat4 proj;
+	glm::mat4 view;
 	uint32_t texture_width, texture_height;
 	glm::vec4 alignas(16) color = glm::vec4(0, 1, 1, 1); // The default color in case vertex_buffer_layout is POSR8G8B8A8
 	glm::vec3 alignas(16) clear_color = glm::vec3(1, 1, 1);

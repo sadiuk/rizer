@@ -29,6 +29,21 @@ bool App::GladInit()
 	return loaded;
 }
 
+void App::resize_callback(GLFWwindow* window, int width, int height)
+{
+	glViewport(0, 0, width, height);
+};
+void App::key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	App* app = (App*)glfwGetWindowUserPointer(window);
+	app->OnKeyPress(key, scancode, action, mods);
+}
+void App::cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	App* app = (App*)glfwGetWindowUserPointer(window);
+	app->OnMouseMove(xpos, ypos);
+}
+
 bool App::GlfwInit()
 {
 	glfwInit();
@@ -39,11 +54,10 @@ bool App::GlfwInit()
 
 	m_window = glfwCreateWindow(m_params.width, m_params.height, m_params.window_name.c_str(), nullptr, nullptr);
 	glfwMakeContextCurrent(m_window);
-
-	auto resize_callback = [](GLFWwindow* window, int width, int height)
-	{
-		glViewport(0, 0, width, height);
-	};
+	glfwSetWindowUserPointer(m_window, this);
+	glfwSetKeyCallback(m_window, key_callback);
+	glfwSetCursorPosCallback(m_window, cursor_position_callback);
+	
 	glfwSetWindowSizeCallback(m_window, resize_callback);
 
 

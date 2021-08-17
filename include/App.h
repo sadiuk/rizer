@@ -26,12 +26,15 @@ public:
 	App(const CreationParams& params);
 	virtual void Run() = 0;
 	virtual ~App() = default;
+	
 private:
 	bool Init();
 	bool GladInit();
 	bool GlfwInit();
 	bool OpenGLInit();
 	bool ImguiInit();
+	virtual void OnKeyPress(int key, int scancode, int action, int mods) {}
+	virtual void OnMouseMove(double xpos, double ypos) {}
 protected:
 	bool ShouldRun() const;
 	void BeginScene();
@@ -39,4 +42,8 @@ protected:
 protected:
 	CreationParams m_params;
 	GLFWwindow* m_window;
+private:
+	static void resize_callback(GLFWwindow* window, int width, int height);
+	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+	static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
 };
