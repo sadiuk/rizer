@@ -59,7 +59,7 @@ bool App::GlfwInit()
 	glfwSetCursorPosCallback(m_window, cursor_position_callback);
 	
 	glfwSetWindowSizeCallback(m_window, resize_callback);
-
+	glfwSwapInterval(0);
 
 	return m_window != nullptr;
 }
