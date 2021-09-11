@@ -142,6 +142,6 @@ void TestPointInTriangle(in vec3 p1, in vec3 p2, in vec3 p3, vec2 test_point, ou
 	vec3 triangle_area = vec3(EdgeFunction(p1.xy, p2.xy, p3.xy));
 	results.barycentrics = (results.edge_function_results / triangle_area);
 	vec3 b = results.barycentrics;
-	results.current_z = 1. / (1 / p1.z * b[0] + 1 / p2.z * b[1] + 1 / p3.z * b[2]); 
+	results.current_z = 1 / p1.z * b[0] + 1 / p2.z * b[1] + 1 / p3.z * b[2]; 
 
 }
