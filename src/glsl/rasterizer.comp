@@ -71,10 +71,10 @@ void main()
 			vec3 p1 = p1_before_perspective.xyz / p1_before_perspective.w;
 			vec3 p2 = p2_before_perspective.xyz / p2_before_perspective.w;
 			vec3 p3 = p3_before_perspective.xyz / p3_before_perspective.w;
-			if(p1_before_perspective.w < -0.01 || p2_before_perspective.w < -0.01 || p3_before_perspective.w < -0.01) break;
-			//vec3 p1 = vertices[triangle_indices[0]].pos;
-			//vec3 p2 = vertices[triangle_indices[1]].pos;
-			//vec3 p3 = vertices[triangle_indices[2]].pos;
+
+			//TODO:cull the triangle instead of discarding it
+			//TODO: add near plane value as a paster param
+			if(p1_before_perspective.w < -0.01 || p2_before_perspective.w < -0.01 || p3_before_perspective.w < -0.01) continue;
 			TestPointInTriangle(p1, p2, p3, texelCoord, orientation);
 
 			if(all(lessThanEqual(orientation.barycentrics, vec3(1))) && all(greaterThanEqual(orientation.barycentrics, vec3(0))))

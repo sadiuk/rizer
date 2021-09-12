@@ -5,6 +5,7 @@
 #include <wtypes.h>
 #include <iostream>
 #include <glm/gtc/matrix_transform.hpp>
+#include "../../src/fs/OBJLoader.h"
 
 class RasterizerApp : App
 {
@@ -103,7 +104,7 @@ public:
 		auto context = GLContext::Get();
 
 		RasterizationParams params;
-		params.vertex_buffer_layout = VertexBufferLayout::POSR8G8B8A8_COLR8G8B8A8;
+		params.vertex_buffer_layout = VertexBufferLayout::POSR8G8B8A8;
 		Rasterizer rasterizer(params);
 
 		RasterizationDynamicParams dynamicParams;
@@ -151,11 +152,17 @@ public:
 		};
 		uvec3 indices[2] = { uvec3{ 0, 1, 2 }, uvec3{3, 4, 5 } };
 
-		auto vertex_buffer = SSBO::Create(vertices, sizeof vertices);
-		auto index_buffer = SSBO::Create(indices, sizeof indices);
+		fs::OBJLoader loader;
+		auto pos = loader.LoadModel("C:/dev/rizer/examples/ex1/cow.obj");
+		
+		//auto vertex_buffer = SSBO::Create(vertices, sizeof vertices);
+		auto vertex_buffer = SSBO::Create(pos.positions.data(), pos.positions.size() * sizeof(vector3<float>));
+		auto index_buffer = SSBO::Create(pos.vtxIndices.data(), pos.vtxIndices.size() * sizeof(vector3<uint32_t>));
 		bool enable_depth_testing = true, update_depth_buffer = true;
 		auto depth_buffer = SSBO::Create(nullptr, dynamicParams.texture_width * dynamicParams.texture_height * sizeof(float));
 		dynamicParams.model = glm::translate(dynamicParams.model, glm::vec3(0, 0, 0));
+
+
 		while (ShouldRun() && m_should_run)
 		{
 			BeginScene();
@@ -183,7 +190,8 @@ public:
 			//	k = k / k.w;
 			//	a = { k.x, k.y, k.z };
 			//}
-			vertex_buffer->Update(vertices, sizeof vertices);
+			//vertex_buffer->Update(vertices, sizeof vertices);
+			//vertex_buffer->Update(vertices, sizeof vertices);
 			rasterizer.Rasterize(vertex_buffer.get(), index_buffer.get(), out_tex.get(), dynamicParams, depth_buffer.get());
 			context->BlitFramebuffer(fbo.get());
 			EndScene();

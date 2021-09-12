@@ -23,6 +23,9 @@ add_library(rizer include/App.cpp
 				  
 				  src/fs/FileManager.cpp
 				  src/fs/FileManager.h
+				  src/fs/OBJLoader.h
+
+				  src/math/vector.h
 				  
 				  src/GLContext.h
 				  src/GLContext.cpp

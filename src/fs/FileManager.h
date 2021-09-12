@@ -1,6 +1,7 @@
 #pragma once 
 #include <string>
 #include <concepts>
+#include <filesystem>
 
 namespace fs
 {
@@ -9,7 +10,7 @@ namespace fs
 	class FileManager
 	{
 	public:
-		static std::string GetFileContent(const std::string_view& filename);
+		static std::string GetFileContent(const std::filesystem::path& filename);
 		template<typename... Args>
 		static std::string FillStringWithData(const std::string_view& str, Args ... args)
 		{
