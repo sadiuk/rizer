@@ -46,9 +46,15 @@ struct PointTriangleOrientation
 	float current_z;
 };
 
+struct AABB
+{
+	vec2 topLeft, botRight;
+};
+
 void TestPointInTriangle(in vec3 p1, in vec3 p2, in vec3 p3, vec2 test_point, out PointTriangleOrientation results);
 bool PerformDepthTest(uvec2 int_coord, float depth, bool updateDepthBuffer);
 void UpdateOutColor(in uint triangle_index, out vec4 color);
+void GetTriangleAABB(in vec2 p1, in vec2 p2, in vec2 p3, out AABB aabb);
 void main()
 {
 	if(all(lessThan(gl_GlobalInvocationID.xy, raster_params.texSize)))
@@ -72,25 +78,26 @@ void main()
 			vec3 p2 = p2_before_perspective.xyz / p2_before_perspective.w;
 			vec3 p3 = p3_before_perspective.xyz / p3_before_perspective.w;
 
-			//TODO:cull the triangle instead of discarding it
-			//TODO: add near plane value as a paster param
-			if(p1_before_perspective.w < -0.01 || p2_before_perspective.w < -0.01 || p3_before_perspective.w < -0.01) continue;
-			TestPointInTriangle(p1, p2, p3, texelCoord, orientation);
-
-			if(all(lessThanEqual(orientation.barycentrics, vec3(1))) && all(greaterThanEqual(orientation.barycentrics, vec3(0))))
+			AABB triangleBB;
+			GetTriangleAABB(p1.xy, p2.xy, p3.xy, triangleBB);
+			if(all(greaterThan(texelCoord, triangleBB.topLeft)) && all(lessThan(texelCoord, triangleBB.botRight)))
 			{
-				pixel_is_covered = true;
-				if(raster_params.enable_depth_testing)
+				//TODO:cull the triangle instead of discarding it
+				//TODO: add near plane value as a paster param
+				if(p1_before_perspective.w < -0.01 || p2_before_perspective.w < -0.01 || p3_before_perspective.w < -0.01) continue;
+				TestPointInTriangle(p1, p2, p3, texelCoord, orientation);
+
+				if(all(lessThanEqual(orientation.barycentrics, vec3(1))) && all(greaterThanEqual(orientation.barycentrics, vec3(0))) &&
+				   raster_params.enable_depth_testing && 
+				   PerformDepthTest(gl_GlobalInvocationID.xy, orientation.current_z, raster_params.update_depth_buffer))
 				{
-					if(PerformDepthTest(gl_GlobalInvocationID.xy, orientation.current_z, raster_params.update_depth_buffer))
-					{
-						vec4 c1, c2, c3;
-						UpdateOutColor(triangle_indices[0], c1);
-						UpdateOutColor(triangle_indices[1], c2);
-						UpdateOutColor(triangle_indices[2], c3);
-						vec3 er = orientation.barycentrics;
-						out_color = vec4((c1 * er.x + c2 * er.y + c3 * er.z).xyz, 1);
-					}
+					pixel_is_covered = true;
+					vec4 c1, c2, c3;
+					UpdateOutColor(triangle_indices[0], c1);
+					UpdateOutColor(triangle_indices[1], c2);
+					UpdateOutColor(triangle_indices[2], c3);
+					vec3 er = orientation.barycentrics;
+					out_color = vec4((c1 * er.x + c2 * er.y + c3 * er.z).xyz, 1);
 				}
 			}
 		}
@@ -113,20 +120,19 @@ void UpdateOutColor(in uint triangle_index, out vec4 color)
 	color = vertices[triangle_index].color;
 #endif
 }
+
 bool PerformDepthTest(uvec2 int_coord, float depth, bool update_depth_buffer)
 {
-	uint buffer_coord = int_coord.y * raster_params.texSize.x + int_coord.x;
-	float current_depth = depthBuffer[buffer_coord];
-	bool depth_test_passed = false;
-	if(depth > current_depth)
-	{
-		depth_test_passed = true;
-	}
-	if(depth_test_passed && update_depth_buffer)
-	{
-		depthBuffer[buffer_coord] = depth;
-	}
-	return depth_test_passed;
+//	uint buffer_coord = int_coord.y * raster_params.texSize.x + int_coord.x;
+//	float current_depth = depthBuffer[buffer_coord];
+//	bool depth_test_passed = false;
+//	depth_test_passed = depth > current_depth ? true : depth_test_passed;
+//	if(depth_test_passed && update_depth_buffer)
+//	{
+//		depthBuffer[buffer_coord] = depth; // FPS drop here
+//	}
+//	return depth_test_passed;
+return true;
 }
 
 float EdgeFunction(in vec2 p1, in vec2 p2, in vec2 test_point)
@@ -144,4 +150,14 @@ void TestPointInTriangle(in vec3 p1, in vec3 p2, in vec3 p3, vec2 test_point, ou
 	vec3 b = results.barycentrics;
 	results.current_z = 1 / p1.z * b[0] + 1 / p2.z * b[1] + 1 / p3.z * b[2]; 
 
+}
+
+void GetTriangleAABB(in vec2 p1, in vec2 p2, in vec2 p3, out AABB aabb)
+{
+	float top = min(min(p1.y, p2.y), p3.y);
+	float left = min(min(p1.x, p2.x), p3.x);
+	float right = max(max(p1.x, p2.x), p3.x);
+	float bot = max(max(p1.y, p2.y), p3.y);
+	aabb.topLeft = vec2(left, top);
+	aabb.botRight = vec2(right, bot);
 }
