@@ -55,6 +55,7 @@ void TestPointInTriangle(in vec3 p1, in vec3 p2, in vec3 p3, vec2 test_point, ou
 bool PerformDepthTest(uvec2 int_coord, float depth, bool updateDepthBuffer);
 void UpdateOutColor(in uint triangle_index, out vec4 color);
 void GetTriangleAABB(in vec2 p1, in vec2 p2, in vec2 p3, out AABB aabb);
+vec4 GetIntersectionWithNearPlane(in vec4 a, in vec4 b, in float nearPlane);
 void main()
 {
 	if(all(lessThan(gl_GlobalInvocationID.xy, raster_params.texSize)))
@@ -71,20 +72,61 @@ void main()
 		for(uint i = 0; i < indices_count; i++)
 		{
 			uvec3 triangle_indices = indices[i];
-			vec4 p1_before_perspective = (raster_params.proj * raster_params.view * raster_params.model * vec4(vertices[triangle_indices[0]].pos, 1));
-			vec4 p2_before_perspective = (raster_params.proj * raster_params.view * raster_params.model * vec4(vertices[triangle_indices[1]].pos, 1));
-			vec4 p3_before_perspective = (raster_params.proj * raster_params.view * raster_params.model * vec4(vertices[triangle_indices[2]].pos, 1));
-			vec3 p1 = p1_before_perspective.xyz / p1_before_perspective.w;
-			vec3 p2 = p2_before_perspective.xyz / p2_before_perspective.w;
-			vec3 p3 = p3_before_perspective.xyz / p3_before_perspective.w;
-
+			vec4 p1_before_w = (raster_params.proj * raster_params.view * raster_params.model * vec4(vertices[triangle_indices[0]].pos, 1));
+			vec4 p2_before_w = (raster_params.proj * raster_params.view * raster_params.model * vec4(vertices[triangle_indices[1]].pos, 1));
+			vec4 p3_before_w = (raster_params.proj * raster_params.view * raster_params.model * vec4(vertices[triangle_indices[2]].pos, 1));
+			bool has_additional_vertice = false;
+			//TODO:cull the triangle instead of discarding them
+			//TODO: add near plane value as a paster param
+			//if(p1_before_w.w < 0.01 || p2_before_w.w < 0.01 || p3_before_w.w < 0.01)
+			{
+				if(p1_before_w.z < 0.01 && p2_before_w.z < 0.01 && p3_before_w.z < 0.01)
+				{
+					//out_color = vec4(0, 0, 0, 1);
+				}
+				else if(p1_before_w.z < 0.01 && p2_before_w.z < 0.01)
+				{
+					
+					p2_before_w = GetIntersectionWithNearPlane(p3_before_w, p2_before_w, 0.01);
+					p1_before_w = GetIntersectionWithNearPlane(p3_before_w, p1_before_w, 0.01);
+				}
+				else if(p2_before_w.z < 0.01 && p3_before_w.z < 0.01)
+				{
+					p2_before_w = GetIntersectionWithNearPlane(p1_before_w, p2_before_w, 0.01);
+					p3_before_w = GetIntersectionWithNearPlane(p1_before_w, p3_before_w, 0.01);
+				}
+				else if(p3_before_w.z < 0.01 && p1_before_w.z < 0.01)
+				{
+					p3_before_w = GetIntersectionWithNearPlane(p2_before_w, p3_before_w, 0.01);
+					p1_before_w = GetIntersectionWithNearPlane(p2_before_w, p1_before_w, 0.01);
+				}
+				else if(p1_before_w.z < 0.01)
+				{
+					has_additional_vertice = true;
+					p1_before_w = GetIntersectionWithNearPlane(p2_before_w, p1_before_w, 0.01);
+					p4_before_w = GetIntersectionWithNearPlane(p3_before_w, p1_before_w, 0.01);
+				}
+				else if(p2_before_w.z < 0.01)
+				{
+					has_additional_vertice = true;
+					p2_before_w = GetIntersectionWithNearPlane(p3_before_w, p2_before_w, 0.01);
+					p4_before_w = GetIntersectionWithNearPlane(p1_before_w, p2_before_w, 0.01);
+				}
+				else if(p3_before_w.z < 0.01)
+				{
+					p3_before_w = GetIntersectionWithNearPlane(p1_before_w, p3_before_w, 0.01);
+					p4_before_w = GetIntersectionWithNearPlane(p2_before_w, p3_before_w, 0.01);
+					has_additional_vertice = true;
+				}
+			}
+			vec3 p1 = p1_before_w.xyz / p1_before_w.w;
+			vec3 p2 = p2_before_w.xyz / p2_before_w.w;
+			vec3 p3 = p3_before_w.xyz / p3_before_w.w;
+			
 			AABB triangleBB;
 			GetTriangleAABB(p1.xy, p2.xy, p3.xy, triangleBB);
 			if(all(greaterThan(texelCoord, triangleBB.topLeft)) && all(lessThan(texelCoord, triangleBB.botRight)))
 			{
-				//TODO:cull the triangle instead of discarding it
-				//TODO: add near plane value as a paster param
-				if(p1_before_perspective.w < -0.01 || p2_before_perspective.w < -0.01 || p3_before_perspective.w < -0.01) continue;
 				TestPointInTriangle(p1, p2, p3, texelCoord, orientation);
 
 				if(all(lessThanEqual(orientation.barycentrics, vec3(1))) && all(greaterThanEqual(orientation.barycentrics, vec3(0))) &&
@@ -123,16 +165,15 @@ void UpdateOutColor(in uint triangle_index, out vec4 color)
 
 bool PerformDepthTest(uvec2 int_coord, float depth, bool update_depth_buffer)
 {
-//	uint buffer_coord = int_coord.y * raster_params.texSize.x + int_coord.x;
-//	float current_depth = depthBuffer[buffer_coord];
-//	bool depth_test_passed = false;
-//	depth_test_passed = depth > current_depth ? true : depth_test_passed;
-//	if(depth_test_passed && update_depth_buffer)
-//	{
-//		depthBuffer[buffer_coord] = depth; // FPS drop here
-//	}
-//	return depth_test_passed;
-return true;
+	uint buffer_coord = int_coord.y * raster_params.texSize.x + int_coord.x;
+	float current_depth = depthBuffer[buffer_coord];
+	bool depth_test_passed = false;
+	depth_test_passed = depth < current_depth ? true : depth_test_passed;
+	if(depth_test_passed && update_depth_buffer)
+	{
+		depthBuffer[buffer_coord] = depth; 
+	}
+	return depth_test_passed;
 }
 
 float EdgeFunction(in vec2 p1, in vec2 p2, in vec2 test_point)
@@ -160,4 +201,10 @@ void GetTriangleAABB(in vec2 p1, in vec2 p2, in vec2 p3, out AABB aabb)
 	float bot = max(max(p1.y, p2.y), p3.y);
 	aabb.topLeft = vec2(left, top);
 	aabb.botRight = vec2(right, bot);
+}
+
+vec4 GetIntersectionWithNearPlane(in vec4 a, in vec4 a1, in float nearPlane)
+{
+	float t = (nearPlane - a.z) / (a1.z - a.z);
+	return a + (a1 - a) * t;
 }

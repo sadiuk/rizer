@@ -104,7 +104,7 @@ public:
 		auto context = GLContext::Get();
 
 		RasterizationParams params;
-		params.vertex_buffer_layout = VertexBufferLayout::POSR8G8B8A8;
+		params.vertex_buffer_layout = VertexBufferLayout::POSR8G8B8A8_COLR8G8B8A8;
 		Rasterizer rasterizer(params);
 
 		RasterizationDynamicParams dynamicParams;
@@ -135,29 +135,24 @@ public:
 		};*/
 		struct vtx { vec3 pos; vec4 color; };
 		vtx vertices[] = {
-			{ vec3{-0.5, -0.5, -0.1 }, vec4{0, 0.5, 1, 1} },
-			{ vec3{-0.4,  0.5, -0.5 }, vec4{0, 1, 0, 1} },
-			{ vec3{ 0.5, -0.5, -0.5 }, vec4{0, 1, 1, 1} },
-			{ vec3{ 0,	 -0.5, -0.9 }, vec4{1, 0, 1, 1} },
-			{ vec3{ 0.1,  0.5, -0.05}, vec4{1, 0, 1, 1} },
-			{ vec3{ 0.2, -0.5, -0.05}, vec4{1, 0, 1, 1} } 
+			{ vec3{-10, 0, -0.1 }, vec4{0, 0.5, 1, 1} },
+			{ vec3{-10, 0, -20 }, vec4{0, 1, 0, 1} },
+			{ vec3{ 10, 0, -20 }, vec4{0, 1, 1, 1} },
+			{ vec3{ -10, 0, -0.1  }, vec4{1, 0, 1, 1} },
+			{ vec3{ 10, 0, -20 }, vec4{1, 0, 1, 1} },
+			{ vec3{ 10, 0, -0.1}, vec4{1, 0, 1, 1} }
 		};
-		//dynamicParams.view = glm::translate(dynamicParams.view, glm::vec3(0, 0, -1));
-		//auto a = dynamicParams.proj * dynamicParams.view * glm::vec4(vertices[0].pos.x, vertices[0].pos.y, vertices[0].pos.z, 1);
-		//dynamicParams.view = glm::translate(dynamicParams.view, glm::vec3(0, 0, 15));
-		//auto b = dynamicParams.proj * dynamicParams.view * glm::vec4(vertices[0].pos.x, vertices[0].pos.y, vertices[0].pos.z, 1);
 		struct alignas(16) uvec3
 		{
 			uint32_t x, y, z;
 		};
 		uvec3 indices[2] = { uvec3{ 0, 1, 2 }, uvec3{3, 4, 5 } };
 
-		fs::OBJLoader loader;
-		auto pos = loader.LoadModel("C:/dev/rizer/examples/ex1/cow.obj");
+		
 		
 		//auto vertex_buffer = SSBO::Create(vertices, sizeof vertices);
-		auto vertex_buffer = SSBO::Create(pos.positions.data(), pos.positions.size() * sizeof(vector3<float>));
-		auto index_buffer = SSBO::Create(pos.vtxIndices.data(), pos.vtxIndices.size() * sizeof(vector3<uint32_t>));
+		auto vertex_buffer = SSBO::Create(vertices, sizeof(vertices));
+		auto index_buffer = SSBO::Create(indices, sizeof(indices));
 		bool enable_depth_testing = true, update_depth_buffer = true;
 		auto depth_buffer = SSBO::Create(nullptr, dynamicParams.texture_width * dynamicParams.texture_height * sizeof(float));
 		dynamicParams.model = glm::translate(dynamicParams.model, glm::vec3(0, 0, 0));
@@ -169,27 +164,37 @@ public:
 			context->clearSSBO(depth_buffer.get());
 
 			ImGui::Begin("Rasterization Params");
+			ImGui::SetWindowSize(ImVec2((float)500, (float)300));
 			ImGui::ColorEdit3("Clear Color", (float*)&dynamicParams.clear_color);
 			ImGui::Checkbox("Enable Depth Test", &enable_depth_testing);
 			ImGui::Checkbox("Update Depth Buffer", &update_depth_buffer);
-			ImGui::SliderFloat("Z0", &vertices[0].pos.z, -1, 0);
-			ImGui::SliderFloat("Z1", &vertices[1].pos.z, -1, 0);
-			ImGui::SliderFloat("Z2", &vertices[2].pos.z, -1, 0);
-			ImGui::SliderFloat("Z3", &vertices[3].pos.z, -1, 0);
-			ImGui::SliderFloat("Z4", &vertices[4].pos.z, -1, 0);
-			ImGui::SliderFloat("Z5", &vertices[5].pos.z, -1, 0);
-			ImGui::End();
 			dynamicParams.enable_depth_test = enable_depth_testing;
 			dynamicParams.update_depth_buffer = update_depth_buffer;
 			//dynamicParams.view = glm::rotate(dynamicParams.view, glm::radians(15.f), glm::vec3(0, -1, 0));
 			dynamicParams.view = glm::lookAt(center, center + forward, up);
 			//dynamicParams.view = glm::translate(dynamicParams.view, glm::vec3(0, 0, 0.01));
-			//for (auto& a : vertices)
-			//{
-			//	auto k = dynamicParams.proj * dynamicParams.view * dynamicParams.model * glm::vec4(a.pos.x, a.pos.y, a.pos.z, 1);
-			//	k = k / k.w;
-			//	a = { k.x, k.y, k.z };
-			//}
+			vtx vertices[] = {
+			{ vec3{-10, 0, -0.1 }, vec4{0, 0.5, 1, 1} },
+			{ vec3{-10, 0, -20 }, vec4{0, 1, 0, 1} },
+			{ vec3{ 10, 0, -20 }, vec4{0, 1, 1, 1} },
+			{ vec3{ -10, 0, -0.1  }, vec4{1, 0, 1, 1} },
+			{ vec3{ 10, 0, -20 }, vec4{1, 0, 1, 1} },
+			{ vec3{ 10, 0, -0.1}, vec4{1, 0, 1, 1} }
+			};
+			for (auto& a : vertices)
+			{
+				
+				auto k = dynamicParams.proj * dynamicParams.view * dynamicParams.model * glm::vec4(a.pos.x, a.pos.y, a.pos.z, 1);
+				//k = k / k.w;
+				a = { k.x, k.y, k.w };
+			}
+			ImGui::Text("1 X:%.3f Y:%.3f Z:%.3f", vertices[0].pos.x, vertices[0].pos.y, vertices[0].pos.z);
+			ImGui::Text("2 X:%.3f Y:%.3f Z:%.3f", vertices[1].pos.x, vertices[1].pos.y, vertices[1].pos.z);
+			ImGui::Text("3 X:%.3f Y:%.3f Z:%.3f", vertices[2].pos.x, vertices[2].pos.y, vertices[2].pos.z);
+			ImGui::Text("4 X:%.3f Y:%.3f Z:%.3f", vertices[3].pos.x, vertices[3].pos.y, vertices[3].pos.z);
+			ImGui::Text("5 X:%.3f Y:%.3f Z:%.3f", vertices[4].pos.x, vertices[4].pos.y, vertices[4].pos.z);
+			ImGui::Text("6 X:%.3f Y:%.3f Z:%.3f", vertices[5].pos.x, vertices[5].pos.y, vertices[5].pos.z);
+			ImGui::End();
 			//vertex_buffer->Update(vertices, sizeof vertices);
 			//vertex_buffer->Update(vertices, sizeof vertices);
 			rasterizer.Rasterize(vertex_buffer.get(), index_buffer.get(), out_tex.get(), dynamicParams, depth_buffer.get());
