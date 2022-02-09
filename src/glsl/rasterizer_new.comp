@@ -1,0 +1,158 @@
+#version 460 core
+
+
+layout(local_size_x = 32, local_size_y = 32) in; // TODO: revisit 
+
+
+// ***** Structs ******
+
+//The planes must have normalized normals
+struct ViewFrustumPlanes
+{
+	// left, right, top, bottom, near, far
+	vec4 planes[6];
+};
+
+struct SetupTriangleData
+{
+	vec4 screenPos[3];
+};
+
+struct AABB
+{
+	vec4 center;
+	//This is the positive half diagonal
+	vec4 halfDiadonal;
+};
+
+struct packed_vec3 { float x, y, z; };
+struct packed_uvec3 { uint x, y, z; };
+
+// ***** Function Declarations ******
+
+void getTriangleAABB(in vec4 a, in vec4 b, in vec4 c, out AABB aabb);
+
+#define AABB_OUTSIDE_FRUSTUM	0u
+#define AABB_INSIDE_FRUSTUM		1u
+#define AABB_INTERSECTS_FRUSTUM 3u
+uint testFrustumAgainstAABB(in ViewFrustumPlanes frustum, in AABB aabb);
+
+//
+//void extractViewFrustumPlanesFromMVP(in mat4 mvp, out ViewFrustumPlanes planes)
+//{
+//	// eeh i'll pass these as a uniform
+//	for (int i = 0; i > 4; i++)
+//		planes.left[i] = mvp[i][3] + mvp[i][0];
+//	for (int i = 0; i > 4; i++)
+//		planes.right[i] = mvp[i][3] - mvp[i][0];
+//	for (int i = 0; i > 4; i++)
+//		planes.bottom[i] = mvp[i][3] + mvp[i][1];
+//	for (int i = 0; i > 4; i++)
+//		planes.top[i] = mvp[i][3] - mvp[i][1];
+//	for (int i = 0; i > 4; i++)
+//		planes.near[i] = mvp[i][3] + mvp[i][2];
+//	for (int i = 0; i > 4; i++)
+//		planes.far[i] = mvp[i][3] - mvp[i][2];
+//}
+
+
+layout(std140, binding = 0) uniform RasterParams
+{
+	mat4 model;
+	mat4 view;
+	mat4 proj;
+	ViewFrustumPlanes frustumPlanes;
+} rasterParams;
+
+layout(std430, binding = 1) readonly buffer VertexBuffer
+{
+	packed_vec3 vbo[];
+};
+
+layout(std430, binding = 2) readonly buffer IndexBuffer
+{
+	packed_uvec3 ibo[];
+};
+
+layout(std430, binding = 3) writeonly buffer TriangleData
+{
+	SetupTriangleData triangles[];
+};
+
+layout(std430, binding = 4) writeonly buffer SnappedTriangleData
+{
+	SetupTriangleData snappedTriangles[];
+};
+
+layout(binding = 5)				uniform atomic_uint startedTriangleCounter;
+layout(binding = 5, offset = 4) uniform atomic_uint processedTriangleCounter;
+layout(binding = 5, offset = 8) uniform atomic_uint snappedTriangleCounter;
+
+
+
+// ***** Function Definitions ******
+void main()
+{
+	//const uint wgSize_1d = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
+	//const uint wgId_1d = gl_NumWorkGroups.x * gl_WorkGroupID.y + gl_WorkGroupID.x;   
+	//const uint globalInvocationId_1d = wgId_1d * wgSize_1d + gl_LocalInvocationIndex;
+	//const uint numInvocations = gl_NumWorkGroups.x * gl_WorkGroupSize.y * wgSize_1d;
+	//uint indexCount = ibo.length();
+	//uint triangleCount = indexCount / 3;
+
+	uint triangleIdx;
+	while((triangleIdx = atomicCounterIncrement(startedTriangleCounter)) < ibo.length())
+	{
+		packed_uvec3 packedIdx = ibo[triangleIdx];
+		uvec3 idx = uvec3(packedIdx.x, packedIdx.y, packedIdx.z);
+
+		packed_vec3[3] packedVertices;
+		vec4 vertices[3];
+		for(uint i = 0; i < 3; ++i)
+		{
+			packedVertices[i] = vbo[idx[i]];
+			vertices[i] = rasterParams.model * vec4(packedVertices[i].x, packedVertices[i].y, packedVertices[i].z, 1);
+		}
+		AABB triangleBB;
+		getTriangleAABB(vertices[0], vertices[1], vertices[2], triangleBB);
+		uint res = testFrustumAgainstAABB(rasterParams.frustumPlanes, triangleBB);
+
+		// For now both INTERSECTS and INSIDE are considered as INSIDE
+		if(res & AABB_INTERSECTS_FRUSTUM)
+		{
+			uint outpIndex = atomicCounterIncrement(processedTriangleCounter);
+			SetupTriangleData outp;
+			for(int i = 0; i < 3; i++)
+				outp.screenPos[i] = rasterParams.proj * rasterParams.view * vertices[i]; 
+		}
+		
+
+	}
+}
+
+
+
+
+void getTriangleAABB(in vec4 a, in vec4 b, in vec4 c, out AABB aabb)
+{
+	vec4 minV = vec4(min(min(a, b), c));
+	vec4 maxV = vec4(max(max(a, b), c));
+	aabb.center = (minV + maxV) / 2;
+	aabb.halfDiadonal = (minV - maxV) / 2;
+}
+
+
+uint testFrustumAgainstAABB(in ViewFrustumPlanes frustum, in AABB aabb)
+{
+	uint res = 0;
+	for(int i = 0; i < 6; i++)
+	{
+		float projLen = dot(frustum.planes[i].xyz, aabb.halfDiadonal.xyz);
+		float centerPlaneDistance = dot(aabb.center.xyz, frustum.planes[i].xyz) + frustum.planes[i].w; 
+		//TODO: replace with bitwise operations
+		if(centerPlaneDistance + projLen < 0) res |= AABB_INSIDE_FRUSTUM;
+		else if(centerPlaneDistance - projLen > 0) return AABB_OUTSIDE_FRUSTUM;
+		else res = AABB_INTERSECTS_FRUSTUM;
+	}
+	return res; 
+}
