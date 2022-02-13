@@ -21,6 +21,7 @@ struct RasterizationParams
 
 struct ViewFrustumPlanes
 {
+	// left, right, top, bottom, near, far
 	glm::vec4 planes[6];
 };
 

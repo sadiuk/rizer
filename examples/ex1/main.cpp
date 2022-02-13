@@ -113,6 +113,12 @@ public:
 			p.planes[4][i] = mvp[i][3] + mvp[i][2];
 		for (int i = 0; i < 4; i++)
 			p.planes[5][i] = mvp[i][3] - mvp[i][2];
+
+		//normalize the plane normal
+		for (auto& plane : p.planes)
+		{
+			plane = plane / glm::length(glm::vec3(plane.x, plane.y, plane.z));
+		}
 	}
 
 	struct AABB
@@ -132,7 +138,7 @@ public:
 		uint32_t res = 0;
 		for (int i = 0; i < 6; i++)
 		{
-			float projLen = glm::dot(glm::vec3(frustum.planes[i].x, frustum.planes[i].y, frustum.planes[i].z), glm::vec3(aabb.halfDiadonal.x, aabb.halfDiadonal.y, aabb.halfDiadonal.z));
+			float projLen = glm::dot(glm::abs(glm::vec3(frustum.planes[i].x, frustum.planes[i].y, frustum.planes[i].z)), glm::vec3(aabb.halfDiadonal.x, aabb.halfDiadonal.y, aabb.halfDiadonal.z));
 			float centerPlaneDistance = glm::dot(glm::vec3(aabb.center.x, aabb.center.y, aabb.center.z), glm::vec3(frustum.planes[i].x, frustum.planes[i].y, frustum.planes[i].z)) + frustum.planes[i].w;
 			//TODO: replace with bitwise operations
 			if (centerPlaneDistance + projLen < 0) return AABB_OUTSIDE_FRUSTUM;
@@ -146,7 +152,7 @@ public:
 		glm::vec4 minV = glm::vec4(glm::min(glm::min(a, b), c));
 		glm::vec4 maxV = glm::vec4(glm::max(glm::max(a, b), c));
 		aabb.center = (minV + maxV) / 2;
-		aabb.halfDiadonal = (minV - maxV) / 2;
+		aabb.halfDiadonal = (maxV - minV) / 2;
 	}
 
 
@@ -170,9 +176,9 @@ public:
 		fbo->AttachTexture(out_tex.get());
 
 		glm::vec3 vertices[] = {
-			glm::vec3{-1, 0, -0.1  },
-			glm::vec3{-1, 0, -2   },
-			glm::vec3{ 1, 0, -2   },
+			glm::vec3{0, 0, -150  },
+			glm::vec3{9.0, 0, -160   },
+			glm::vec3{ -3.63, 0, -170   },
 			glm::vec3{ -10, 0, -0.1 },
 			glm::vec3{ 10, 0, -20   },
 			glm::vec3{ 10, 0, -0.1  }
@@ -211,10 +217,11 @@ public:
 			ImGui::End();
 			//dynamicParams.view = glm::rotate(dynamicParams.view, glm::radians(15.f), glm::vec3(0, -1, 0));
 			//dynamicParams.view = glm::translate(dynamicParams.view, glm::vec3(0, 0, 0.01));
-			params.view = glm::lookAt(center, center + forward, up);
+			inputParams.raster_params.view = glm::lookAt(center, center + forward, up);
 			//vertex_buffer->Update(vertices, sizeof vertices);
 			//vertex_buffer->Update(vertices, sizeof vertices);
-			ExtractViewFrustumPlanesFromMVP(params.proj * params.view * params.model, params.planes);
+			ExtractViewFrustumPlanesFromMVP(inputParams.raster_params.proj * inputParams.raster_params.view * inputParams.raster_params.model, inputParams.raster_params.planes);
+			inputParams.uniforms->Update((void*)&inputParams.raster_params, sizeof(inputParams.raster_params));
 			// TODO: delete when debug finished
 			for (int i = 0; i < sizeof(vertices) / sizeof(glm::vec4); i+=3)
 			{
@@ -222,8 +229,8 @@ public:
 				auto v2 = vertices[i + 1];
 				auto v3 = vertices[i + 2];
 				AABB aabb;
-				getTriangleAABB(params.model * glm::vec4(v1, 1), params.model * glm::vec4(v2, 1), params.model * glm::vec4(v3, 1), aabb);
-				auto res = testFrustumAgainstAABB(params.planes, aabb);
+				getTriangleAABB(inputParams.raster_params.model * glm::vec4(v1, 1), inputParams.raster_params.model * glm::vec4(v2, 1), inputParams.raster_params.model * glm::vec4(v3, 1), aabb);
+				auto res = testFrustumAgainstAABB(inputParams.raster_params.planes, aabb);
 			}
 			rasterizer.Rasterize(inputParams);
 			//context->BlitFramebuffer(fbo.get());

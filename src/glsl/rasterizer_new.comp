@@ -98,7 +98,7 @@ void main()
 		uint res = testFrustumAgainstAABB(rasterParams.frustumPlanes, triangleBB);
 
 		// For now both INTERSECTS and INSIDE are considered as INSIDE
-		//if(res == AABB_INTERSECTS_FRUSTUM || res == AABB_INSIDE_FRUSTUM)
+		if(res == AABB_INTERSECTS_FRUSTUM || res == AABB_INSIDE_FRUSTUM)
 		{
 			uint outpIndex = atomicCounterIncrement(processedTriangleCounter);
 			SetupTriangleData outp;
@@ -117,7 +117,7 @@ void getTriangleAABB(in vec4 a, in vec4 b, in vec4 c, out AABB aabb)
 	vec4 minV = vec4(min(min(a, b), c));
 	vec4 maxV = vec4(max(max(a, b), c));
 	aabb.center = (minV + maxV) / 2;
-	aabb.halfDiadonal = (minV - maxV) / 2;
+	aabb.halfDiadonal = (maxV - minV) / 2;
 }
 
 
@@ -126,7 +126,7 @@ uint testFrustumAgainstAABB(in ViewFrustumPlanes frustum, in AABB aabb)
 	uint res = 0;
 	for(int i = 0; i < 6; i++)
 	{
-		float projLen = dot(frustum.planes[i].xyz, aabb.halfDiadonal.xyz);
+		float projLen = dot(abs(frustum.planes[i].xyz), aabb.halfDiadonal.xyz);
 		float centerPlaneDistance = dot(aabb.center.xyz, frustum.planes[i].xyz) + frustum.planes[i].w; 
 		//TODO: replace with bitwise operations
 		if (centerPlaneDistance + projLen < 0) return AABB_OUTSIDE_FRUSTUM;
