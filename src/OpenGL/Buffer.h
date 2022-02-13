@@ -5,30 +5,23 @@
 #include <glad/glad.h>
 
 
-class SSBO
+class Buffer
 {
 	GLuint m_id;
-	SSBO(void* data, uint32_t size);
+	size_t m_size;
+	Buffer(void* data, uint32_t size);
 public:
 	[[nodiscard]] GLuint GetId() const { return m_id; }
-	static std::shared_ptr<SSBO> Create(void* data, uint32_t size)
+	[[nodiscard]] GLuint GetSize() const { return m_size; }
+	static std::shared_ptr<Buffer> Create(void* data, uint32_t size)
 	{
-		return std::shared_ptr<SSBO>(new SSBO(data, size));
+		return std::shared_ptr<Buffer>(new Buffer(data, size));
 	}
 	void Update(void* data, uint32_t size);
-	~SSBO();
+	~Buffer();
 };
 
-class UBO
-{
-	GLuint m_id;
-	UBO(void* data, uint32_t size);
-public:
-	[[nodiscard]] GLuint GetId() const { return m_id; }
-	void Update(void* data, uint32_t size);
-	static std::shared_ptr<UBO> Create(void* data, uint32_t size)
-	{
-		return std::shared_ptr<UBO>(new UBO(data, size));
-	}
-	~UBO();
-};
+using SSBO = Buffer;
+using UBO = Buffer;
+using AtomicCounterBuffer = Buffer;
+

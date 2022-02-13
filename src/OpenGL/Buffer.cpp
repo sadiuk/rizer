@@ -1,33 +1,18 @@
 #include "Buffer.h"
 
-SSBO::SSBO(void* data, uint32_t size)
+Buffer::Buffer(void* data, uint32_t size) : m_size(size)
 {
 	glCreateBuffers(1, &m_id);
 	glNamedBufferData(m_id, size, data, GL_STATIC_DRAW);
 }
 
-SSBO::~SSBO()
+Buffer::~Buffer()
 {
 	glDeleteBuffers(1, &m_id);
 }
 
-UBO::~UBO()
+void Buffer::Update(void* data, uint32_t size)
 {
-	glDeleteBuffers(1, &m_id);
-}
-
-UBO::UBO(void* data, uint32_t size)
-{
-	glCreateBuffers(1, &m_id);
-	glNamedBufferData(m_id, size, data, GL_STATIC_DRAW);
-}
-
-void UBO::Update(void* data, uint32_t size)
-{
-	glNamedBufferData(m_id, size, data, GL_STATIC_DRAW);
-}
-
-void SSBO::Update(void* data, uint32_t size)
-{
+	m_size = size;
 	glNamedBufferData(m_id, size, data, GL_STATIC_DRAW);
 }

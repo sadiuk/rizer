@@ -19,6 +19,19 @@ struct RasterizationParams
 	VertexBufferLayout vertex_buffer_layout;
 };
 
+struct ViewFrustumPlanes
+{
+	glm::vec4 planes[6];
+};
+
+struct RasterizationParams_new
+{
+	glm::mat4 model;
+	glm::mat4 view;
+	glm::mat4 proj;
+	ViewFrustumPlanes planes;
+};
+
 struct alignas(16) RasterizationDynamicParams
 {
 	glm::mat4 proj;
@@ -32,19 +45,28 @@ struct alignas(16) RasterizationDynamicParams
 	uint32_t update_depth_buffer = 1;
 };
 
+
 class Rasterizer
 {
 public:
-	Rasterizer(const RasterizationParams& params);
+	struct InputParams
+	{
+		SSBO* vertex_buffer;
+		SSBO* index_buffer;
+		SSBO* triangle_setup_buffer;;
+		Texture2D* out_tex;
+		AtomicCounterBuffer* atomics;
+		UBO* uniforms;
+		RasterizationParams_new raster_params;
+
+	};
+	Rasterizer();
 	~Rasterizer() = default;
 
-	void Rasterize(SSBO* vertex_buffer, SSBO* index_buffer, Texture2D* out_tex, const RasterizationDynamicParams& params, SSBO* depth_buffer = nullptr);
-	void SetRasterizationParams(const RasterizationParams& params);
+	void Rasterize(const InputParams& params);
 private:
 	void CompileShaderWithStaticParams();
 private:
-	RasterizationParams m_static_params;
-	RasterizationDynamicParams m_dynamic_params;
 	GLContext* m_context;
 
 	std::shared_ptr<UBO> m_raster_params_ubo;

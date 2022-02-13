@@ -10,22 +10,22 @@
 class RasterizerApp : App
 {
 	bool m_should_run = true;
-	
+
 	double m_prev_mouse_x, m_prev_mouse_y;
 	float m_mouse_sensitivity = 0.1f;
 	float m_movement_speed = 0.1f;
 
 	float m_yaw = 0, m_pitch = 0;
 	bool m_reset_mouse_pos = true;
-	
 
-	glm::vec3 forward { 0, 0, -1 };
-	glm::vec3 center  { 0, 0, 0 };
-	glm::vec3 up      { 0, 1, 0 };
+
+	glm::vec3 forward{ 0, 0, -1 };
+	glm::vec3 center{ 0, 0, 0 };
+	glm::vec3 up{ 0, 1, 0 };
 
 public:
 	RasterizerApp(const CreationParams& params) : App(params) {
-		
+
 		m_prev_mouse_x = params.width / 2;
 		m_prev_mouse_y = params.height / 2;
 		glfwSetCursorPos(m_window, m_prev_mouse_x, m_prev_mouse_y);
@@ -42,13 +42,13 @@ public:
 			break;
 		}
 		case GLFW_KEY_A: [[fallthrough]];
-		case GLFW_KEY_LEFT: 
+		case GLFW_KEY_LEFT:
 		{
 			center -= m_movement_speed * glm::normalize(glm::cross(forward, up));
 			break;
 		}
 		case GLFW_KEY_S: [[fallthrough]];
-		case GLFW_KEY_DOWN: 
+		case GLFW_KEY_DOWN:
 		{
 			center -= m_movement_speed * forward;
 			break;
@@ -69,7 +69,7 @@ public:
 	//TODO make this function threadsafe XD
 	void OnMouseMove(double xpos, double ypos) override
 	{
-		if(m_reset_mouse_pos)
+		if (m_reset_mouse_pos)
 		{
 			m_reset_mouse_pos = false;
 			return;
@@ -96,57 +96,88 @@ public:
 			m_prev_mouse_y = winsize_y / 2;
 			m_reset_mouse_pos = true;
 		}
-		
+
 	}
+
+	void ExtractViewFrustumPlanesFromMVP(glm::mat4 mvp, ViewFrustumPlanes& p)
+	{
+		for (int i = 0; i < 4; i++)
+			p.planes[0][i] = mvp[i][3] + mvp[i][0];
+		for (int i = 0; i < 4; i++)
+			p.planes[1][i] = mvp[i][3] - mvp[i][0];
+		for (int i = 0; i < 4; i++)
+			p.planes[2][i] = mvp[i][3] + mvp[i][1];
+		for (int i = 0; i < 4; i++)
+			p.planes[3][i] = mvp[i][3] - mvp[i][1];
+		for (int i = 0; i < 4; i++)
+			p.planes[4][i] = mvp[i][3] + mvp[i][2];
+		for (int i = 0; i < 4; i++)
+			p.planes[5][i] = mvp[i][3] - mvp[i][2];
+	}
+
+	struct AABB
+	{
+		glm::vec4 center;
+		//This is the positive half diagonal
+		glm::vec4 halfDiadonal;
+	};
+	enum : uint32_t
+	{
+		AABB_OUTSIDE_FRUSTUM = 0,
+		AABB_INSIDE_FRUSTUM = 1,
+		AABB_INTERSECTS_FRUSTUM = 3
+	};
+	uint32_t testFrustumAgainstAABB(ViewFrustumPlanes& frustum, AABB& aabb)
+	{
+		uint32_t res = 0;
+		for (int i = 0; i < 6; i++)
+		{
+			float projLen = glm::dot(glm::vec3(frustum.planes[i].x, frustum.planes[i].y, frustum.planes[i].z), glm::vec3(aabb.halfDiadonal.x, aabb.halfDiadonal.y, aabb.halfDiadonal.z));
+			float centerPlaneDistance = glm::dot(glm::vec3(aabb.center.x, aabb.center.y, aabb.center.z), glm::vec3(frustum.planes[i].x, frustum.planes[i].y, frustum.planes[i].z)) + frustum.planes[i].w;
+			//TODO: replace with bitwise operations
+			if (centerPlaneDistance + projLen < 0) return AABB_OUTSIDE_FRUSTUM;
+			else if (centerPlaneDistance - projLen > 0) res |= AABB_INSIDE_FRUSTUM;
+			else res = AABB_INTERSECTS_FRUSTUM;
+		}
+		return res;
+	}
+	void getTriangleAABB(glm::vec4 a, glm::vec4 b, glm::vec4 c, AABB& aabb)
+	{
+		glm::vec4 minV = glm::vec4(glm::min(glm::min(a, b), c));
+		glm::vec4 maxV = glm::vec4(glm::max(glm::max(a, b), c));
+		aabb.center = (minV + maxV) / 2;
+		aabb.halfDiadonal = (minV - maxV) / 2;
+	}
+
 
 	void Run()
 	{
+		constexpr uint32_t tex_size_x = 2048, tex_size_y = 2048;
 		auto context = GLContext::Get();
 
-		RasterizationParams params;
-		params.vertex_buffer_layout = VertexBufferLayout::POSR8G8B8A8_COLR8G8B8A8;
-		Rasterizer rasterizer(params);
+		RasterizationParams_new params;
+		Rasterizer rasterizer;
 
-		RasterizationDynamicParams dynamicParams;
-		dynamicParams.texture_width = m_params.width;
-		dynamicParams.texture_height = m_params.height;
-		dynamicParams.proj = glm::perspective(60.f, m_params.width / float(m_params.height), 0.01f, 100.f);
-		dynamicParams.view = glm::mat4(1); glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-		dynamicParams.model = glm::mat4(1);
+		//RasterizationDynamicParams dynamicParams;
+		//dynamicParams.texture_width = m_params.width;
+		//dynamicParams.texture_height = m_params.height;
+		params.proj = glm::perspective(60.f, m_params.width / float(m_params.height), 0.01f, 100.f);
+		params.view = glm::mat4(1); //glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+		params.model = glm::mat4(1);
 
-		auto out_tex = Texture2D::CreateEmptyR8G8B8A8_UNORM(dynamicParams.texture_width, dynamicParams.texture_height);
+		auto out_tex = Texture2D::CreateEmptyR8G8B8A8_UNORM(2048, 2048);
 		auto fbo = Framebuffer::Create();
 		fbo->AttachTexture(out_tex.get());
-		struct alignas(16) vec3
-		{
-			float x, y, z;
+
+		glm::vec3 vertices[] = {
+			glm::vec3{-1, 0, -0.1  },
+			glm::vec3{-1, 0, -2   },
+			glm::vec3{ 1, 0, -2   },
+			glm::vec3{ -10, 0, -0.1 },
+			glm::vec3{ 10, 0, -20   },
+			glm::vec3{ 10, 0, -0.1  }
 		};
-		struct alignas(16) vec4
-		{
-			float x, y, z, w;
-		};
-		/*vec3 vertices[6] = {
-			vec3{-0.5, -0.5, -0.1 },
-			vec3{-0.4,  0.5, -0.5 },
-			vec3{0.5, -0.5, -0.5 },
-			vec3{0, -0.5, -0.9 },
-			vec3{0.1,  0.5, -0.05 },
-			vec3{0.2, -0.5, -0.2 }
-		};*/
-		struct vtx { vec3 pos; vec4 color; };
-		vtx vertices[] = {
-			{ vec3{-10, 0, -0.1 }, vec4{0, 0.5, 1, 1} },
-			{ vec3{-10, 0, -20 }, vec4{0, 1, 0, 1} },
-			{ vec3{ 10, 0, -20 }, vec4{0, 1, 1, 1} },
-			{ vec3{ -10, 0, -0.1  }, vec4{1, 0, 1, 1} },
-			{ vec3{ 10, 0, -20 }, vec4{1, 0, 1, 1} },
-			{ vec3{ 10, 0, -0.1}, vec4{1, 0, 1, 1} }
-		};
-		struct alignas(16) uvec3
-		{
-			uint32_t x, y, z;
-		};
-		uvec3 indices[2] = { uvec3{ 0, 1, 2 }, uvec3{3, 4, 5 } };
+		glm::uvec3 indices[2] = { glm::uvec3{ 0, 1, 2 }, glm::uvec3{3, 4, 5 } };
 
 		
 		
@@ -154,51 +185,48 @@ public:
 		auto vertex_buffer = SSBO::Create(vertices, sizeof(vertices));
 		auto index_buffer = SSBO::Create(indices, sizeof(indices));
 		bool enable_depth_testing = true, update_depth_buffer = true;
-		auto depth_buffer = SSBO::Create(nullptr, dynamicParams.texture_width * dynamicParams.texture_height * sizeof(float));
-		dynamicParams.model = glm::translate(dynamicParams.model, glm::vec3(0, 0, 0));
+		auto depth_buffer = SSBO::Create(nullptr, tex_size_x * tex_size_y * sizeof(float));
+		
+		auto atomicCounterBuffer = AtomicCounterBuffer::Create(nullptr, 3 * sizeof(uint32_t));
+		context->clearBuffer(atomicCounterBuffer.get());
+		auto paramsUBO = UBO::Create((void*)&params, sizeof(params));
+		auto triCount = index_buffer->GetSize() / 3 / sizeof(uint32_t);
+		auto outBuffer = SSBO::Create(nullptr, triCount * sizeof(glm::vec4) * 3);
 
 
+		Rasterizer::InputParams inputParams;
+		inputParams.index_buffer = index_buffer.get();
+		inputParams.vertex_buffer = vertex_buffer.get();
+		inputParams.out_tex = out_tex.get();
+		inputParams.raster_params = params;
+		inputParams.atomics = atomicCounterBuffer.get();
+		inputParams.uniforms = paramsUBO.get();
+		inputParams.triangle_setup_buffer = outBuffer.get();
 		while (ShouldRun() && m_should_run)
 		{
 			BeginScene();
-			context->clearSSBO(depth_buffer.get());
-
 			ImGui::Begin("Rasterization Params");
 			ImGui::SetWindowSize(ImVec2((float)500, (float)300));
-			ImGui::ColorEdit3("Clear Color", (float*)&dynamicParams.clear_color);
-			ImGui::Checkbox("Enable Depth Test", &enable_depth_testing);
-			ImGui::Checkbox("Update Depth Buffer", &update_depth_buffer);
-			dynamicParams.enable_depth_test = enable_depth_testing;
-			dynamicParams.update_depth_buffer = update_depth_buffer;
-			//dynamicParams.view = glm::rotate(dynamicParams.view, glm::radians(15.f), glm::vec3(0, -1, 0));
-			dynamicParams.view = glm::lookAt(center, center + forward, up);
-			//dynamicParams.view = glm::translate(dynamicParams.view, glm::vec3(0, 0, 0.01));
-			vtx vertices[] = {
-			{ vec3{-10, 0, -0.1 }, vec4{0, 0.5, 1, 1} },
-			{ vec3{-10, 0, -20 }, vec4{0, 1, 0, 1} },
-			{ vec3{ 10, 0, -20 }, vec4{0, 1, 1, 1} },
-			{ vec3{ -10, 0, -0.1  }, vec4{1, 0, 1, 1} },
-			{ vec3{ 10, 0, -20 }, vec4{1, 0, 1, 1} },
-			{ vec3{ 10, 0, -0.1}, vec4{1, 0, 1, 1} }
-			};
-			for (auto& a : vertices)
-			{
-				
-				auto k = dynamicParams.proj * dynamicParams.view * dynamicParams.model * glm::vec4(a.pos.x, a.pos.y, a.pos.z, 1);
-				//k = k / k.w;
-				a = { k.x, k.y, k.w };
-			}
-			ImGui::Text("1 X:%.3f Y:%.3f Z:%.3f", vertices[0].pos.x, vertices[0].pos.y, vertices[0].pos.z);
-			ImGui::Text("2 X:%.3f Y:%.3f Z:%.3f", vertices[1].pos.x, vertices[1].pos.y, vertices[1].pos.z);
-			ImGui::Text("3 X:%.3f Y:%.3f Z:%.3f", vertices[2].pos.x, vertices[2].pos.y, vertices[2].pos.z);
-			ImGui::Text("4 X:%.3f Y:%.3f Z:%.3f", vertices[3].pos.x, vertices[3].pos.y, vertices[3].pos.z);
-			ImGui::Text("5 X:%.3f Y:%.3f Z:%.3f", vertices[4].pos.x, vertices[4].pos.y, vertices[4].pos.z);
-			ImGui::Text("6 X:%.3f Y:%.3f Z:%.3f", vertices[5].pos.x, vertices[5].pos.y, vertices[5].pos.z);
+
 			ImGui::End();
+			//dynamicParams.view = glm::rotate(dynamicParams.view, glm::radians(15.f), glm::vec3(0, -1, 0));
+			//dynamicParams.view = glm::translate(dynamicParams.view, glm::vec3(0, 0, 0.01));
+			params.view = glm::lookAt(center, center + forward, up);
 			//vertex_buffer->Update(vertices, sizeof vertices);
 			//vertex_buffer->Update(vertices, sizeof vertices);
-			rasterizer.Rasterize(vertex_buffer.get(), index_buffer.get(), out_tex.get(), dynamicParams, depth_buffer.get());
-			context->BlitFramebuffer(fbo.get());
+			ExtractViewFrustumPlanesFromMVP(params.proj * params.view * params.model, params.planes);
+			// TODO: delete when debug finished
+			for (int i = 0; i < sizeof(vertices) / sizeof(glm::vec4); i+=3)
+			{
+				auto v1 = vertices[i];
+				auto v2 = vertices[i + 1];
+				auto v3 = vertices[i + 2];
+				AABB aabb;
+				getTriangleAABB(params.model * glm::vec4(v1, 1), params.model * glm::vec4(v2, 1), params.model * glm::vec4(v3, 1), aabb);
+				auto res = testFrustumAgainstAABB(params.planes, aabb);
+			}
+			rasterizer.Rasterize(inputParams);
+			//context->BlitFramebuffer(fbo.get());
 			EndScene();
 		}
 	}

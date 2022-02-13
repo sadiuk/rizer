@@ -16,6 +16,11 @@ void GLContext::BindSSBO(SSBO* ssbo, uint32_t slot)
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, slot, ssbo->GetId());
 }
 
+void GLContext::BindAtomicCounterBuffer(AtomicCounterBuffer* buffer, uint32_t binding)
+{
+	glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, binding, buffer->GetId());
+}
+
 void GLContext::BindComputeProgram(ComputeProgram* program)
 {
 	glUseProgram(program->GetId());
@@ -40,7 +45,7 @@ void GLContext::PipelineBarrier(GLenum barrier)
 	glMemoryBarrier(barrier);
 }
 
-void GLContext::clearSSBO(SSBO* buff)
+void GLContext::clearBuffer(Buffer* buff)
 {
 	glClearNamedBufferData(buff->GetId(), GL_R32F, GL_RED, GL_FLOAT, nullptr);
 }

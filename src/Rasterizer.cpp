@@ -1,6 +1,6 @@
 #include "Rasterizer.h"
 
-Rasterizer::Rasterizer(const RasterizationParams& params) : m_static_params(params)
+Rasterizer::Rasterizer()
 {
 	m_context = GLContext::Get();
 	//TODO: relative path
@@ -9,32 +9,27 @@ Rasterizer::Rasterizer(const RasterizationParams& params) : m_static_params(para
 
 void Rasterizer::CompileShaderWithStaticParams()
 {
-	m_program = ComputeProgram::CreateProgramFromFileWithParams("C:/dev/rizer/src/glsl/rasterizer.comp", (int)m_static_params.vertex_buffer_layout);
+	m_program = ComputeProgram::CreateProgramFromFile("C:/dev/rizer/src/glsl/rasterizer_new.comp");
 }
 
-void Rasterizer::Rasterize(SSBO* vertex_buffer, SSBO* index_buffer, Texture2D* out_tex, const RasterizationDynamicParams& params, SSBO* depth_buffer)
+void Rasterizer::Rasterize(const InputParams& params)
 {
-	m_dynamic_params = params;
-	if (m_raster_params_ubo == nullptr)
-	{
-		m_raster_params_ubo = UBO::Create(&m_dynamic_params, sizeof(m_dynamic_params));
-	}
-	else
-	{
-		m_raster_params_ubo->Update(&m_dynamic_params, sizeof(m_dynamic_params));
-	}
+	//TODO TAKE STRUCT SIZES NOT MEMBER (I'LL REGRET NOT DOING IT NOW)
+
 	m_context->BindComputeProgram (m_program.get());
-	m_context->BindUniformBlock(m_raster_params_ubo.get(), 0);
-	m_context->BindTexture2D(out_tex, 0);
-	m_context->BindSSBO(vertex_buffer, 1);
-	m_context->BindSSBO(index_buffer, 2);
-	m_context->BindSSBO(depth_buffer, 3);
-	m_context->Dispatch(m_dynamic_params.texture_width / 16 + 1, m_dynamic_params.texture_height / 16 + 1, 1);
-	m_context->PipelineBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-}
+	m_context->BindTexture2D(params.out_tex, 0);
+	m_context->BindUniformBlock(params.uniforms, 0);
+	m_context->BindSSBO(params.vertex_buffer, 1);
+	m_context->BindSSBO(params.index_buffer, 2);
+	m_context->BindSSBO(params.triangle_setup_buffer, 3);
+	//
+	m_context->BindAtomicCounterBuffer(params.atomics, 5);
 
-void Rasterizer::SetRasterizationParams(const RasterizationParams& params)
-{
-	m_static_params = params;
+	//TODO Compute optimal sizes
+	m_context->Dispatch(64, 64, 1);
+
+
+
+	m_context->PipelineBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
