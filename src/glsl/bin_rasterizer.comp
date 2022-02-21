@@ -1,0 +1,129 @@
+#version 460 core
+
+
+#define LOCAL_SIZE_X 512
+layout(local_size_x = LOCAL_SIZE_X, local_size_y = 1) in;
+
+// TODO implement includes for glsl headers, must be done ASAP
+struct SetupTriangleData
+{
+	vec4 screenPos[3];
+};
+
+struct AABB2D
+{
+	vec2 minPos, maxPos;
+};
+
+// TODO push constants instead of defines
+#define BIN_COUNT uvec2(16, 16)
+#define IMAGE_SIZE uvec2(2048, 2048)
+#define SHARED_MEMORY_BIT_SIZE BIN_COUNT.x * BIN_COUNT.y * LOCAL_SIZE_X
+#define SHARED_MEMORY_INT_SIZE SHARED_MEMORY_BIT_SIZE / 32
+#define SHARED_MEMORY_BIN_STRIDE SHARED_MEMORY_INT_SIZE / (BIN_COUNT.x * BIN_COUNT.y)
+
+shared uint binRasterizerTempOutput[SHARED_MEMORY_INT_SIZE];
+//
+//
+void SetTriangleCoverageBit(uvec2 bin, uint triangleId, bool overlaps);
+//bool GetTriangleCoverageBit(uvec2 bin, uint triangleId);
+
+void GetTriangle2DAABB(in vec4 screenPos[3], out AABB2D aabb);
+
+
+
+layout(std430, binding = 3) readonly buffer TriangleData
+{
+	SetupTriangleData triangles[];
+};
+
+layout(std430, binding = 4) readonly buffer SnappedTriangleData
+{
+	SetupTriangleData snappedTriangles[];
+};
+
+layout(binding = 5, offset = 0)	uniform atomic_uint startedTriangleCounter;
+layout(binding = 5, offset = 4)	uniform atomic_uint processedTriangleCounter;
+
+void main()
+{
+	uint triangleIdx;
+	// TODO URGENT: get contiguous data for entire workgroup!!!
+	while((triangleIdx = atomicCounterIncrement(startedTriangleCounter)) < triangles.length())
+	{
+		SetupTriangleData triangle = triangles[triangleIdx];
+		AABB2D aabb;
+		GetTriangle2DAABB(triangle.screenPos, aabb);
+		vec2 binSize = IMAGE_SIZE / BIN_COUNT;
+		uvec2 bottomLeftBin = uvec2(clamp((aabb.minPos + 1) * 0.5 / binSize, vec2(0), vec2(BIN_COUNT)));
+		uvec2 topRightBin = uvec2(clamp((aabb.maxPos + 1) * 0.5 / binSize, vec2(0), vec2(BIN_COUNT)));
+		uvec2 areaSize = abs(bottomLeftBin - topRightBin);
+		// Clear the memory for the triangle
+		for(uint y = 0; y < BIN_COUNT.y; ++y)
+		{
+			for(uint x = 0; x < BIN_COUNT.x; ++x)
+			{
+				SetTriangleCoverageBit(uvec2(x, y), triangleIdx, false);
+			}
+		}
+
+		if((areaSize.x == 1 || areaSize.x == 2) && (areaSize.y == 1 || areaSize.y == 2))
+		{
+			for(uint y = bottomLeftBin.y; y < topRightBin.y; ++y)
+			{
+				for(uint x = bottomLeftBin.x; x < topRightBin.x; ++x)
+				{
+					SetTriangleCoverageBit(uvec2(x, y), triangleIdx, true);
+				}
+			}
+		}
+		else
+		{
+			for(uint y = bottomLeftBin.y; y < topRightBin.y; ++y)
+			{
+				for(uint x = bottomLeftBin.x; x < topRightBin.x; ++x)
+				{
+					// triangle-bin test
+					vec2 binStart = vec2(x, y) * binSize;
+					vec2 binEnd = binStart + binSize;
+					vec2 binCenter = (binStart + binEnd) / 2;
+					vec2 halfWidth = (binEnd - binStart) / 2;
+
+					vec2 triCenter = (aabb.minPos + aabb.maxPos) / 2;
+					vec2 triHalfWidth = (aabb.maxPos - aabb.minPos) / 2;
+
+					bool overlaps = all(greaterThan(abs(binCenter - triCenter), halfWidth + triHalfWidth));
+
+					SetTriangleCoverageBit(uvec2(x, y), triangleIdx, overlaps);
+				}
+			}
+		}
+		memoryBarrierShared();
+	}
+}
+
+void GetTriangle2DAABB(in vec4 screenPos[3], out AABB2D aabb)
+{
+	vec4 minV = vec4(min(min(screenPos[0], screenPos[1]), screenPos[2]));
+	vec4 maxV = vec4(max(max(screenPos[0], screenPos[1]), screenPos[2]));
+	aabb.minPos = minV.xy;
+	aabb.maxPos = maxV.xy;
+}
+
+void SetTriangleCoverageBit(uvec2 bin, uint triangleId, bool overlaps)
+{
+	uint binStartIndex = (BIN_COUNT.x * bin.y + bin.x) * SHARED_MEMORY_BIN_STRIDE;
+	uint innerBinOffset = triangleId / 32;
+	uint bitOffset = triangleId % 32;
+
+	binRasterizerTempOutput[binStartIndex + innerBinOffset] |= (int(overlaps) << bitOffset);
+}
+
+bool GetTriangleCoverageBit(uvec2 bin, uint triangleId)
+{
+	uint binStartIndex = (BIN_COUNT.x * bin.y + bin.x) * SHARED_MEMORY_BIN_STRIDE;
+	uint innerBinOffset = triangleId / 32;
+	uint bitOffset = triangleId % 32;
+
+	return bool(binRasterizerTempOutput[binStartIndex + innerBinOffset] & (1 << bitOffset));
+}

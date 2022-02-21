@@ -97,15 +97,25 @@ void main()
 		getTriangleAABB(vertices[0], vertices[1], vertices[2], triangleBB);
 		uint res = testFrustumAgainstAABB(rasterParams.frustumPlanes, triangleBB);
 
-		// For now both INTERSECTS and INSIDE are considered as INSIDE
+		// TODO: triangles whise AABB diagonal has 0 on 1 axis
+		// For now both INTERSECTS and INSIDE are considered INSIDE
 		if(res == AABB_INTERSECTS_FRUSTUM || res == AABB_INSIDE_FRUSTUM)
 		{
 			uint outpIndex = atomicCounterIncrement(processedTriangleCounter);
 			SetupTriangleData outp;
 			for(int i = 0; i < 3; i++)
-				outp.screenPos[i] = rasterParams.proj * rasterParams.view * vertices[i];
+			{
+				outp.screenPos[i] = rasterParams.proj * rasterParams.view * vertices[i]; // TODO: Do i need separate view + proj matrices??? (most likely not)
+				float w = outp.screenPos[i].w; 
+				outp.screenPos[i] /= w;
+				outp.screenPos[i].w /= w;
+			}
 			triangles[outpIndex] = outp;
 		}
+
+		// TODO triangle clipping
+		// TODO 0-area  triangles
+		// TODO triangles that have all vertices between samples (when multisampling is implemented)
 }
 }
 

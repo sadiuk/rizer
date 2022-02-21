@@ -176,10 +176,10 @@ public:
 		fbo->AttachTexture(out_tex.get());
 
 		glm::vec3 vertices[] = {
-			glm::vec3{0, 0, -150  },
-			glm::vec3{9.0, 0, -160   },
-			glm::vec3{ -3.63, 0, -170   },
-			glm::vec3{ -10, 0, -0.1 },
+			glm::vec3{0, 0, -20  },
+			glm::vec3{9.0, 0, -20   },
+			glm::vec3{ -3.63, 0, -10   },
+			glm::vec3{ 0, 0, -0.1 },
 			glm::vec3{ 10, 0, -20   },
 			glm::vec3{ 10, 0, -0.1  }
 		};
@@ -228,6 +228,7 @@ public:
 				auto v1 = vertices[i];
 				auto v2 = vertices[i + 1];
 				auto v3 = vertices[i + 2];
+				auto view = inputParams.raster_params.view * glm::vec4(v3, 1);
 				AABB aabb;
 				getTriangleAABB(inputParams.raster_params.model * glm::vec4(v1, 1), inputParams.raster_params.model * glm::vec4(v2, 1), inputParams.raster_params.model * glm::vec4(v3, 1), aabb);
 				auto res = testFrustumAgainstAABB(inputParams.raster_params.planes, aabb);
