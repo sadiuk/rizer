@@ -71,5 +71,6 @@ private:
 	GLContext* m_context;
 
 	std::shared_ptr<UBO> m_raster_params_ubo;
-	std::shared_ptr<ComputeProgram> m_program;
+	std::shared_ptr<ComputeProgram> m_triangleSetupProgram;
+	std::shared_ptr<ComputeProgram> m_binRasterizerProgram;
 };

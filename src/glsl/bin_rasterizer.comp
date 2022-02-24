@@ -26,8 +26,8 @@ shared uint binRasterizerTempOutput[SHARED_MEMORY_INT_SIZE];
 shared uint prefixSum[LOCAL_SIZE_X * 2];
 shared uint triangleSharedIndex;
 shared uint binStartIndices[BIN_COUNT.x * BIN_COUNT.y];
-//
-//
+
+
 void SetTriangleCoverageBit(uvec2 bin, uint triangleId, bool overlaps);
 bool GetTriangleCoverageBit(uvec2 bin, uint triangleId);
 void GetTriangle2DAABB(in vec4 screenPos[3], out AABB2D aabb);
@@ -44,7 +44,7 @@ layout(std430, binding = 1) readonly buffer SnappedTriangleData
 	SetupTriangleData snappedTriangles[];
 };
 // EACH BIN SIZE MUST BE THE SIZE OF TriangleData * SnappedTriangleData
-layout(std430, binding = 1) writeonly buffer PerBinIndices
+layout(std430, binding = 2) writeonly buffer PerBinIndices
 {
 	uint perBinTriangleIndices[];
 };

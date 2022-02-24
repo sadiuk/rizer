@@ -193,12 +193,13 @@ public:
 		bool enable_depth_testing = true, update_depth_buffer = true;
 		auto depth_buffer = SSBO::Create(nullptr, tex_size_x * tex_size_y * sizeof(float));
 		
-		auto atomicCounterBuffer = AtomicCounterBuffer::Create(nullptr, 3 * sizeof(uint32_t));
-		context->clearBuffer(atomicCounterBuffer.get());
+		const glm::vec2 bin_count(16, 16);
+		auto atomicCounterBuffer = AtomicCounterBuffer::Create(nullptr, 20 + 4 * bin_count.x * bin_count.y);
+		context->ClearBuffer(atomicCounterBuffer.get());
 		auto paramsUBO = UBO::Create((void*)&params, sizeof(params));
 		auto triCount = index_buffer->GetSize() / 3 / sizeof(uint32_t);
 		auto outBuffer = SSBO::Create(nullptr, triCount * sizeof(glm::vec4) * 3);
-
+		auto perBinTriangleIndices
 
 		Rasterizer::InputParams inputParams;
 		inputParams.index_buffer = index_buffer.get();

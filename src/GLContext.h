@@ -28,5 +28,5 @@ public:
 	
 	void PipelineBarrier(GLenum barrier);
 
-	void clearBuffer(SSBO* buff);
+	void ClearBuffer(SSBO* buff);
 };
