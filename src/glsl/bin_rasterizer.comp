@@ -75,7 +75,7 @@ void main()
 			vec2 binSize = IMAGE_SIZE / BIN_COUNT;
 			uvec2 bottomLeftBin = uvec2(clamp((aabb.minPos + 1) * 0.5 / binSize, vec2(0), vec2(BIN_COUNT)));
 			uvec2 topRightBin = uvec2(clamp((aabb.maxPos + 1) * 0.5 / binSize, vec2(0), vec2(BIN_COUNT)));
-			uvec2 areaSize = abs(bottomLeftBin - topRightBin);
+			uvec2 areaSize = uvec2(abs(bottomLeftBin - topRightBin));
 			// Clear the memory for the triangle
 			for(uint y = 0; y < BIN_COUNT.y; ++y)
 			{

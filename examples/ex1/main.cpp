@@ -161,7 +161,7 @@ public:
 		constexpr uint32_t tex_size_x = 2048, tex_size_y = 2048;
 		auto context = GLContext::Get();
 
-		RasterizationParams_new params;
+		RasterizationParams params;
 		Rasterizer rasterizer;
 
 		//RasterizationDynamicParams dynamicParams;
@@ -187,28 +187,7 @@ public:
 
 		
 		
-		//auto vertex_buffer = SSBO::Create(vertices, sizeof vertices);
-		auto vertex_buffer = SSBO::Create(vertices, sizeof(vertices));
-		auto index_buffer = SSBO::Create(indices, sizeof(indices));
-		bool enable_depth_testing = true, update_depth_buffer = true;
-		auto depth_buffer = SSBO::Create(nullptr, tex_size_x * tex_size_y * sizeof(float));
-		
-		const glm::vec2 bin_count(16, 16);
-		auto atomicCounterBuffer = AtomicCounterBuffer::Create(nullptr, 20 + 4 * bin_count.x * bin_count.y);
-		context->ClearBuffer(atomicCounterBuffer.get());
-		auto paramsUBO = UBO::Create((void*)&params, sizeof(params));
-		auto triCount = index_buffer->GetSize() / 3 / sizeof(uint32_t);
-		auto outBuffer = SSBO::Create(nullptr, triCount * sizeof(glm::vec4) * 3);
-		auto perBinTriangleIndices
-
-		Rasterizer::InputParams inputParams;
-		inputParams.index_buffer = index_buffer.get();
-		inputParams.vertex_buffer = vertex_buffer.get();
-		inputParams.out_tex = out_tex.get();
-		inputParams.raster_params = params;
-		inputParams.atomics = atomicCounterBuffer.get();
-		inputParams.uniforms = paramsUBO.get();
-		inputParams.triangle_setup_buffer = outBuffer.get();
+		Rasterizer::InputParams inputParams((void*)vertices, sizeof vertices, (void*)indices, sizeof indices, params);
 		while (ShouldRun() && m_should_run)
 		{
 			BeginScene();
@@ -218,21 +197,21 @@ public:
 			ImGui::End();
 			//dynamicParams.view = glm::rotate(dynamicParams.view, glm::radians(15.f), glm::vec3(0, -1, 0));
 			//dynamicParams.view = glm::translate(dynamicParams.view, glm::vec3(0, 0, 0.01));
-			inputParams.raster_params.view = glm::lookAt(center, center + forward, up);
+			inputParams.rasterParams.view = glm::lookAt(center, center + forward, up);
 			//vertex_buffer->Update(vertices, sizeof vertices);
 			//vertex_buffer->Update(vertices, sizeof vertices);
-			ExtractViewFrustumPlanesFromMVP(inputParams.raster_params.proj * inputParams.raster_params.view * inputParams.raster_params.model, inputParams.raster_params.planes);
-			inputParams.uniforms->Update((void*)&inputParams.raster_params, sizeof(inputParams.raster_params));
+			ExtractViewFrustumPlanesFromMVP(inputParams.rasterParams.proj * inputParams.rasterParams.view * inputParams.rasterParams.model, inputParams.rasterParams.planes);
+			inputParams.uniforms->Update((void*)&inputParams.rasterParams, sizeof(inputParams.rasterParams));
 			// TODO: delete when debug finished
 			for (int i = 0; i < sizeof(vertices) / sizeof(glm::vec4); i+=3)
 			{
 				auto v1 = vertices[i];
 				auto v2 = vertices[i + 1];
 				auto v3 = vertices[i + 2];
-				auto view = inputParams.raster_params.view * glm::vec4(v3, 1);
+				auto view = inputParams.rasterParams.view * glm::vec4(v3, 1);
 				AABB aabb;
-				getTriangleAABB(inputParams.raster_params.model * glm::vec4(v1, 1), inputParams.raster_params.model * glm::vec4(v2, 1), inputParams.raster_params.model * glm::vec4(v3, 1), aabb);
-				auto res = testFrustumAgainstAABB(inputParams.raster_params.planes, aabb);
+				getTriangleAABB(inputParams.rasterParams.model * glm::vec4(v1, 1), inputParams.rasterParams.model * glm::vec4(v2, 1), inputParams.rasterParams.model * glm::vec4(v3, 1), aabb);
+				auto res = testFrustumAgainstAABB(inputParams.rasterParams.planes, aabb);
 			}
 			rasterizer.Rasterize(inputParams);
 			//context->BlitFramebuffer(fbo.get());
