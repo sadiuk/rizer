@@ -171,28 +171,29 @@ public:
 		params.view = glm::mat4(1); //glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 		params.model = glm::mat4(1);
 
-		auto out_tex = Texture2D::CreateEmptyR8G8B8A8_UNORM(2048, 2048);
 		auto fbo = Framebuffer::Create();
-		fbo->AttachTexture(out_tex.get());
 
 		glm::vec3 vertices[] = {
-			glm::vec3{0, 0, -20  },
-			glm::vec3{9.0, 0, -20   },
-			glm::vec3{ -3.63, 0, -10   },
-			glm::vec3{ 0, 0, -0.1 },
-			glm::vec3{ 10, 0, -20   },
-			glm::vec3{ 10, 0, -0.1  }
+			glm::vec3{0, 1, -20  },
+			glm::vec3{9.0, -1, -20   },
+			glm::vec3{ -3.63, 2, -10   }/*,
+			glm::vec3{ 0, 0, -20 },
+			glm::vec3{ 9, 0, -20   },
+			glm::vec3{ -3, 0, -5  }*/
 		};
-		glm::uvec3 indices[2] = { glm::uvec3{ 0, 1, 2 }, glm::uvec3{3, 4, 5 } };
+		glm::uvec3 indices[/*2*/1] = { glm::uvec3{ 0, 1, 2 }/*, glm::uvec3{3, 4, 5 }*/ };
 
-		
-		
+
 		Rasterizer::InputParams inputParams((void*)vertices, sizeof vertices, (void*)indices, sizeof indices, params);
+		fbo->AttachTexture(inputParams.outTex.get());
+		fbo->Bind();
+
 		while (ShouldRun() && m_should_run)
 		{
+			//inputParams.outTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(2048, 2048);
 			BeginScene();
 			ImGui::Begin("Rasterization Params");
-			ImGui::SetWindowSize(ImVec2((float)500, (float)300));
+			ImGui::SetWindowSize(ImVec2((float)1024, (float)1024));
 
 			ImGui::End();
 			//dynamicParams.view = glm::rotate(dynamicParams.view, glm::radians(15.f), glm::vec3(0, -1, 0));
@@ -203,7 +204,7 @@ public:
 			ExtractViewFrustumPlanesFromMVP(inputParams.rasterParams.proj * inputParams.rasterParams.view * inputParams.rasterParams.model, inputParams.rasterParams.planes);
 			inputParams.uniforms->Update((void*)&inputParams.rasterParams, sizeof(inputParams.rasterParams));
 			// TODO: delete when debug finished
-			for (int i = 0; i < sizeof(vertices) / sizeof(glm::vec4); i+=3)
+			for (int i = 0; i < sizeof(vertices) / sizeof(glm::vec4); i += 3)
 			{
 				auto v1 = vertices[i];
 				auto v2 = vertices[i + 1];
@@ -214,7 +215,7 @@ public:
 				auto res = testFrustumAgainstAABB(inputParams.rasterParams.planes, aabb);
 			}
 			rasterizer.Rasterize(inputParams);
-			//context->BlitFramebuffer(fbo.get());
+			context->BlitFramebuffer(fbo.get());
 			EndScene();
 		}
 	}
@@ -222,7 +223,7 @@ public:
 
 int main()
 {
-	RasterizerApp app(CreationParams{ 1000, 700, "Demo App" });
+	RasterizerApp app(CreationParams{ 1024, 1024, "Demo App" });
 	app.Run();
 }
 

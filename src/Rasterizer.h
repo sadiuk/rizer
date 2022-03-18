@@ -51,26 +51,28 @@ public:
 			size_t vertexBufferSize,
 			void* indexData,
 			size_t indexBufferSize,
-			RasterizationParams& params)
+			RasterizationParams& params) : rasterParams(params)
 		{
 			vertexBuffer = SSBO::Create(vertexData, vertexBufferSize);
 			indexBuffer = SSBO::Create(indexData, indexBufferSize);
 			auto triCount = indexBuffer->GetSize() / 3 / sizeof(uint32_t);
 			triangleSetupBuffer = SSBO::Create(nullptr, triCount * sizeof(glm::vec4) * 3);
-			outTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(2048, 2048);
-			glm::uvec2 binCount(16, 16);
-			atomics = AtomicCounterBuffer::Create(nullptr, 20 + 4 * binCount.x * binCount.y);
+			outTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(1024, 1024);
+			atomics = AtomicCounterBuffer::Create(nullptr, atomicBufferSize);
 			uniforms = UBO::Create((void*)&params, sizeof(params));
+			perBinTriangleIndices = SSBO::Create(nullptr, 0);
 		}
 
 		std::shared_ptr<SSBO> vertexBuffer;
 		std::shared_ptr<SSBO> indexBuffer;
-		std::shared_ptr<SSBO> triangleSetupBuffer;;
+		std::shared_ptr<SSBO> triangleSetupBuffer;
+		std::shared_ptr<SSBO> perBinTriangleIndices;
 		std::shared_ptr<Texture2D> outTex;
 		std::shared_ptr<AtomicCounterBuffer> atomics;
 		std::shared_ptr<UBO> uniforms;
 		RasterizationParams rasterParams;
-
+		constexpr static uint16_t binCount = 256;
+		constexpr static uint16_t atomicBufferSize = 16 + 4 * binCount;
 	};
 	Rasterizer();
 	~Rasterizer() = default;

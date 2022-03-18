@@ -17,7 +17,7 @@ struct AABB2D
 
 // TODO push constants instead of defines
 #define BIN_COUNT uvec2(16, 16)
-#define IMAGE_SIZE uvec2(2048, 2048)
+#define IMAGE_SIZE uvec2(1024, 1024)
 #define SHARED_MEMORY_BIT_SIZE BIN_COUNT.x * BIN_COUNT.y * LOCAL_SIZE_X
 #define SHARED_MEMORY_INT_SIZE SHARED_MEMORY_BIT_SIZE / 32
 #define SHARED_MEMORY_BIN_STRIDE SHARED_MEMORY_INT_SIZE / (BIN_COUNT.x * BIN_COUNT.y)
@@ -43,39 +43,41 @@ layout(std430, binding = 1) readonly buffer SnappedTriangleData
 {
 	SetupTriangleData snappedTriangles[];
 };
-// EACH BIN SIZE MUST BE THE SIZE OF TriangleData * SnappedTriangleData
+// EACH BIN SIZE MUST BE THE SIZE OF TriangleData + SnappedTriangleData
 layout(std430, binding = 2) writeonly buffer PerBinIndices
 {
 	uint perBinTriangleIndices[];
 };
 
-layout(binding = 5, offset = 4) uniform atomic_uint triangleCount;
-layout(binding = 5, offset = 8) uniform atomic_uint snappedTriangleCount;
-layout(binding = 5, offset = 12) uniform atomic_uint startedTriangleCounter;
-layout(binding = 5, offset = 16) uniform atomic_uint processedTriangleCounter;
-layout(binding = 5, offset = 20) uniform atomic_uint perBinTriangleCount[BIN_COUNT.x * BIN_COUNT.y];
+layout(binding = 3, offset = 4) uniform atomic_uint triangleCount;
+layout(binding = 3, offset = 8) uniform atomic_uint snappedTriangleCount;
+layout(binding = 3, offset = 12) uniform atomic_uint startedTriangleCounter;
+layout(binding = 3, offset = 16) uniform atomic_uint processedTriangleCounter;
+layout(binding = 3, offset = 20) uniform atomic_uint perBinTriangleCount[BIN_COUNT.x * BIN_COUNT.y];
 
+//test
+layout(binding = 4, rgba8) uniform image2D testTex;
 void main()
 {
 	uint triangleIdx;
 	if(gl_LocalInvocationID.x == 0)
 	{
-		triangleSharedIndex = atomicCounterAdd(startedTriangleCounter, LOCAL_SIZE_X);
+		triangleSharedIndex = 0;
 	}
 	barrier();
 	memoryBarrierShared();
 	while(triangleSharedIndex < triangles.length())
 	{
 		triangleIdx = triangleSharedIndex + gl_LocalInvocationID.x;
-		if(triangleIdx < triangles.length())
+		if(triangleIdx < atomicCounter(triangleCount))
 		{
 			SetupTriangleData triangle = triangles[triangleIdx];
 			AABB2D aabb;
 			GetTriangle2DAABB(triangle.screenPos, aabb);
 			vec2 binSize = IMAGE_SIZE / BIN_COUNT;
-			uvec2 bottomLeftBin = uvec2(clamp((aabb.minPos + 1) * 0.5 / binSize, vec2(0), vec2(BIN_COUNT)));
-			uvec2 topRightBin = uvec2(clamp((aabb.maxPos + 1) * 0.5 / binSize, vec2(0), vec2(BIN_COUNT)));
-			uvec2 areaSize = uvec2(abs(bottomLeftBin - topRightBin));
+			uvec2 bottomLeftBin = uvec2(clamp(((aabb.minPos * 0.5) + 0.5) * BIN_COUNT - 1, vec2(0), vec2(BIN_COUNT - 1)));
+			uvec2 topRightBin = uvec2(clamp(((aabb.maxPos * 0.5) + 0.5) * BIN_COUNT - 1, vec2(0), vec2(BIN_COUNT - 1)));
+			uvec2 areaSize = uvec2(abs(topRightBin - bottomLeftBin));
 			// Clear the memory for the triangle
 			for(uint y = 0; y < BIN_COUNT.y; ++y)
 			{
@@ -87,9 +89,9 @@ void main()
 
 			if((areaSize.x == 1 || areaSize.x == 2) && (areaSize.y == 1 || areaSize.y == 2))
 			{
-				for(uint y = bottomLeftBin.y; y < topRightBin.y; ++y)
+				for(uint y = bottomLeftBin.y; y <= topRightBin.y; ++y)
 				{
-					for(uint x = bottomLeftBin.x; x < topRightBin.x; ++x)
+					for(uint x = bottomLeftBin.x; x <= topRightBin.x; ++x)
 					{
 						SetTriangleCoverageBit(uvec2(x, y), triangleIdx, true);
 					}
@@ -97,13 +99,13 @@ void main()
 			}
 			else
 			{
-				for(uint y = bottomLeftBin.y; y < topRightBin.y; ++y)
+				for(uint y = bottomLeftBin.y; y <= topRightBin.y; ++y)
 				{
-					for(uint x = bottomLeftBin.x; x < topRightBin.x; ++x)
+					for(uint x = bottomLeftBin.x; x <= topRightBin.x; ++x)
 					{
 						// triangle-bin test
-						vec2 binStart = vec2(x, y) * binSize;
-						vec2 binEnd = binStart + binSize;
+						vec2 binStart = vec2(x, y) / binSize * 2 - 1;
+						vec2 binEnd = binStart + 2 / binSize;
 						vec2 binCenter = (binStart + binEnd) / 2;
 						vec2 halfWidth = (binEnd - binStart) / 2;
 
@@ -128,16 +130,22 @@ void main()
 					prefixSum[gl_LocalInvocationID.x] = int(GetTriangleCoverageBit(uvec2(x, y), gl_LocalInvocationID.x));
 					for(int stage = 0; stage < stages; stage++)
 					{
-						uint readOffset = (stage & 1) * LOCAL_SIZE_X;
-						uint writeOffset = (stage + 1 & 1) * LOCAL_SIZE_X;
-						uint stride = (1 << stage);
+						uint readOffset = (stage & 1) * LOCAL_SIZE_X; // half of the shared memory that we will read from
+						uint writeOffset = (stage + 1 & 1) * LOCAL_SIZE_X; // half of the shared memory that we will write to
+						uint stride = (1 << stage); 
 						bool add = gl_LocalInvocationID.x % (stride << 1) >= stride;
+						uint strideId = gl_LocalInvocationID.x % stride; // ID inside stride
+						uint readIndex = readOffset + gl_LocalInvocationID.x - 1 - strideId;
+						uint writeIndex = writeOffset + gl_LocalInvocationID.x;
+						uint oldIndex = readOffset + gl_LocalInvocationID.x;
+
 						if(add)
 						{
-							uint strideId = gl_LocalInvocationID.x % stride; // ID inside stride
-							uint readIndex = readOffset + gl_LocalInvocationID.x - 1 - strideId;
-							uint writeIndex = writeOffset + gl_LocalInvocationID.x;
-							prefixSum[writeIndex] += prefixSum[readIndex];
+							prefixSum[writeIndex] += prefixSum[readIndex] + prefixSum[oldIndex];
+						}
+						else
+						{
+							prefixSum[writeIndex] = prefixSum[oldIndex];
 						}
 						barrier();
 						memoryBarrierShared();
@@ -145,7 +153,7 @@ void main()
 					uint binIndex = y * BIN_COUNT.x + x;
 					uint readIndex = (stages & 1) * LOCAL_SIZE_X + gl_LocalInvocationID.x;
 					uint outpIndex = prefixSum[readIndex];
-					if(gl_LocalInvocationID.x == LOCAL_SIZE_X - 1)
+					if(gl_LocalInvocationID.x == 0)
 					{
 						binStartIndices[binIndex] = atomicCounterAdd(perBinTriangleCount[binIndex], outpIndex);
 					}
@@ -154,20 +162,35 @@ void main()
 					if(GetTriangleCoverageBit(uvec2(x, y), gl_LocalInvocationID.x))
 					{
 						uint triCount = atomicCounter(triangleCount) + atomicCounter(snappedTriangleCount);
-						uint outpIndex = (y * BIN_COUNT.x + x) * triCount + outpIndex;
+						uint outpIndex = binIndex * triCount + binStartIndices[binIndex] + outpIndex;
 						perBinTriangleIndices[outpIndex] = triangleIdx;
+						//test
+						{
+							uvec2 binStart = uvec2(x, y) * uvec2(binSize);
+							uvec2 binEnd = binStart + uvec2(binSize);
+							for(uint i = binStart.x; i < binEnd.x; i++)
+							{
+							for(uint j = binStart.y; j < binEnd.y; j++)
+							{
+								if(uvec2(x, y) == uvec2(1, 1))
+								imageStore(testTex, ivec2(i, j), vec4(0, 1, 0, 1));
+								else
+								imageStore(testTex, ivec2(i, j), vec4(1, 1, 1, 1));
+							}
+							}
+						}
 					}
 				}
 			}
 
-			if(gl_LocalInvocationID.x == 0)
-			{
-				triangleSharedIndex = atomicCounterAdd(startedTriangleCounter, LOCAL_SIZE_X);
-			}
-			barrier();
-			memoryBarrier();
-			memoryBarrierShared();
 		}
+		if(gl_LocalInvocationID.x == 0)
+		{
+			triangleSharedIndex = atomicCounterAdd(startedTriangleCounter, LOCAL_SIZE_X);
+		}
+		barrier();
+		memoryBarrier();
+		memoryBarrierShared();
 	}
 }
 
@@ -185,7 +208,7 @@ void SetTriangleCoverageBit(uvec2 bin, uint triangleId, bool overlaps)
 	uint innerBinOffset = triangleId / 32;
 	uint bitOffset = triangleId % 32;
 
-	binRasterizerTempOutput[binStartIndex + innerBinOffset] |= (int(overlaps) << bitOffset);
+	binRasterizerTempOutput[binStartIndex + innerBinOffset] ^= (-int(overlaps) ^ binRasterizerTempOutput[binStartIndex + innerBinOffset]) & (1 << bitOffset);
 }
 
 bool GetTriangleCoverageBit(uvec2 bin, uint triangleId)

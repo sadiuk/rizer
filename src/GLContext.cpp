@@ -45,8 +45,13 @@ void GLContext::PipelineBarrier(GLenum barrier)
 	glMemoryBarrier(barrier);
 }
 
-void GLContext::ClearBuffer(Buffer* buff)
+void GLContext::GetBufferSubData(Buffer* buff, size_t offset, size_t size, void* data)
 {
-	glClearNamedBufferData(buff->GetId(), GL_R32F, GL_RED, GL_FLOAT, nullptr);
+	glGetNamedBufferSubData(buff->GetId(), offset, size, data);
+}
+
+void GLContext::ClearBuffer(Buffer* buff, int internalFormat, int format, int type, void* data)
+{
+	glClearNamedBufferData(buff->GetId(), internalFormat, format, type, data);
 }
 
