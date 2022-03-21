@@ -154,7 +154,15 @@ public:
 		aabb.center = (minV + maxV) / 2;
 		aabb.halfDiadonal = (maxV - minV) / 2;
 	}
-
+	
+	//test
+	glm::ivec2 getBinForCoord(glm::vec2 coord)
+	{
+		glm::vec2 binSize = glm::vec2(0.125, 0.125);
+		glm::ivec2 res = glm::ivec2(coord / binSize);
+		res += 8;
+		return res;
+	}
 
 	void Run()
 	{
@@ -174,14 +182,14 @@ public:
 		auto fbo = Framebuffer::Create();
 
 		glm::vec3 vertices[] = {
-			glm::vec3{0, 1, -20  },
-			glm::vec3{9.0, -1, -20   },
-			glm::vec3{ -3.63, 2, -10   }/*,
-			glm::vec3{ 0, 0, -20 },
-			glm::vec3{ 9, 0, -20   },
-			glm::vec3{ -3, 0, -5  }*/
+			glm::vec3{-10, 1, -20  },
+			glm::vec3{-5, 10, -20   },
+			glm::vec3{ 0, 1, -20   },
+			glm::vec3{ 0, 1, -20 },
+			glm::vec3{ 5, 10, -20   },
+			glm::vec3{ 10, 1, -20  }
 		};
-		glm::uvec3 indices[/*2*/1] = { glm::uvec3{ 0, 1, 2 }/*, glm::uvec3{3, 4, 5 }*/ };
+		glm::uvec3 indices[2] = { glm::uvec3{ 0, 1, 2 }, glm::uvec3{3, 4, 5 } };
 
 
 		Rasterizer::InputParams inputParams((void*)vertices, sizeof vertices, (void*)indices, sizeof indices, params);

@@ -31,7 +31,9 @@ shared uint binStartIndices[BIN_COUNT.x * BIN_COUNT.y];
 void SetTriangleCoverageBit(uvec2 bin, uint triangleId, bool overlaps);
 bool GetTriangleCoverageBit(uvec2 bin, uint triangleId);
 void GetTriangle2DAABB(in vec4 screenPos[3], out AABB2D aabb);
-
+bool PointInTriangle(vec2 point, vec2 v1, vec2 v2, vec2 v3);
+bool PointInAABB(vec2 point, vec2 v1, vec2 v2, vec2 v3, vec2 v4);
+bool SegmentsIntersect(vec2 s1, vec2 s2, vec2 p1, vec2 p2);
 
 
 layout(std430, binding = 0) readonly buffer TriangleData
@@ -57,6 +59,10 @@ layout(binding = 3, offset = 20) uniform atomic_uint perBinTriangleCount[BIN_COU
 
 //test
 layout(binding = 4, rgba8) uniform image2D testTex;
+uint debugFloat(float v)
+{
+	return uint(abs(v) * 100 + + 100 * int(v > 0));
+}
 void main()
 {
 	uint triangleIdx;
@@ -75,8 +81,9 @@ void main()
 			AABB2D aabb;
 			GetTriangle2DAABB(triangle.screenPos, aabb);
 			vec2 binSize = IMAGE_SIZE / BIN_COUNT;
-			uvec2 bottomLeftBin = uvec2(clamp(((aabb.minPos * 0.5) + 0.5) * BIN_COUNT - 1, vec2(0), vec2(BIN_COUNT - 1)));
-			uvec2 topRightBin = uvec2(clamp(((aabb.maxPos * 0.5) + 0.5) * BIN_COUNT - 1, vec2(0), vec2(BIN_COUNT - 1)));
+			vec2 binSizeRelative = vec2(2.0, 2.0) / vec2(BIN_COUNT);
+			uvec2 bottomLeftBin = uvec2(clamp(((aabb.minPos * 0.5) + 0.5) * BIN_COUNT, vec2(0), vec2(BIN_COUNT - 1)));
+			uvec2 topRightBin = uvec2(clamp(((aabb.maxPos * 0.5) + 0.5) * BIN_COUNT, vec2(0), vec2(BIN_COUNT - 1)));
 			uvec2 areaSize = uvec2(abs(topRightBin - bottomLeftBin));
 			// Clear the memory for the triangle
 			for(uint y = 0; y < BIN_COUNT.y; ++y)
@@ -104,17 +111,55 @@ void main()
 					for(uint x = bottomLeftBin.x; x <= topRightBin.x; ++x)
 					{
 						// triangle-bin test
-						vec2 binStart = vec2(x, y) / binSize * 2 - 1;
-						vec2 binEnd = binStart + 2 / binSize;
-						vec2 binCenter = (binStart + binEnd) / 2;
-						vec2 halfWidth = (binEnd - binStart) / 2;
+						vec2 binStart = (vec2(x, y) / vec2(BIN_COUNT) - 0.5) * 2;
+						vec2 binEnd = binStart + binSizeRelative;
 
-						vec2 triCenter = (aabb.minPos + aabb.maxPos) / 2;
-						vec2 triHalfWidth = (aabb.maxPos - aabb.minPos) / 2;
+						bool binInsideTriangle = false, triangleInsideBin = false, triangleBinIntersect = false;
 
-						bool overlaps = all(greaterThan(abs(binCenter - triCenter), halfWidth + triHalfWidth));
-
-						SetTriangleCoverageBit(uvec2(x, y), triangleIdx, overlaps);
+						binInsideTriangle = PointInTriangle(binStart, triangle.screenPos[0].xy, triangle.screenPos[1].xy, triangle.screenPos[2].xy);
+						binInsideTriangle = binInsideTriangle || PointInTriangle(binStart + vec2(binSizeRelative.x, 0), triangle.screenPos[0].xy, triangle.screenPos[1].xy, triangle.screenPos[2].xy);
+						binInsideTriangle = binInsideTriangle || PointInTriangle(binStart + vec2(0, binSizeRelative.y), triangle.screenPos[0].xy, triangle.screenPos[1].xy, triangle.screenPos[2].xy);
+						binInsideTriangle = binInsideTriangle || PointInTriangle(binStart + binSizeRelative, triangle.screenPos[0].xy, triangle.screenPos[1].xy, triangle.screenPos[2].xy);
+						
+						
+						triangleInsideBin = all(greaterThanEqual(triangle.screenPos[0].xy, binStart)) && all(lessThanEqual(triangle.screenPos[0].xy, binEnd)); 
+						triangleInsideBin = triangleInsideBin || (all(greaterThanEqual(triangle.screenPos[1].xy, binStart)) && all(lessThanEqual(triangle.screenPos[1].xy, binEnd))); 
+						triangleInsideBin = triangleInsideBin || (all(greaterThanEqual(triangle.screenPos[2].xy, binStart)) && all(lessThanEqual(triangle.screenPos[2].xy, binEnd))); 
+							
+						triangleBinIntersect = SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[1].xy, binStart, binStart + vec2(binSizeRelative.x, 0));
+						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[1].xy, triangle.screenPos[2].xy, binStart, binStart + vec2(binSizeRelative.x, 0));
+						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[2].xy, binStart, binStart + vec2(binSizeRelative.x, 0));
+						
+						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[1].xy, binStart + vec2(binSizeRelative.x, 0), binStart + binSizeRelative);
+						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[1].xy, triangle.screenPos[2].xy, binStart + vec2(binSizeRelative.x, 0), binStart + binSizeRelative);
+						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[2].xy, binStart + vec2(binSizeRelative.x, 0), binStart + binSizeRelative);
+						
+						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[1].xy, binStart + binSizeRelative, binStart + vec2(0, binSizeRelative.y));
+						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[1].xy, triangle.screenPos[2].xy, binStart + binSizeRelative, binStart + vec2(0, binSizeRelative.y));
+						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[2].xy, binStart + binSizeRelative, binStart + vec2(0, binSizeRelative.y));
+						
+						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[1].xy, binStart + vec2(0, binSizeRelative.y), binStart);
+						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[1].xy, triangle.screenPos[2].xy, binStart + vec2(0, binSizeRelative.y), binStart);
+						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[2].xy, binStart + vec2(0, binSizeRelative.y), binStart);
+							
+							//test
+//							if(triangleInsideBin)
+//							{
+//								perBinTriangleIndices[0] = debugFloat(binStart.x);
+//								perBinTriangleIndices[1] = debugFloat(binStart.y);
+//								perBinTriangleIndices[2] = debugFloat(binEnd.x);
+//								perBinTriangleIndices[3] = debugFloat(binEnd.y);
+//
+//								perBinTriangleIndices[4] = debugFloat(triangle.screenPos[0].x);
+//								perBinTriangleIndices[5] = debugFloat(triangle.screenPos[0].y);
+//								perBinTriangleIndices[6] = debugFloat(triangle.screenPos[1].x);
+//								perBinTriangleIndices[7] = debugFloat(triangle.screenPos[1].y);
+//								perBinTriangleIndices[8] = debugFloat(triangle.screenPos[2].x);
+//								perBinTriangleIndices[9] = debugFloat(triangle.screenPos[2].y);
+//
+//
+//							}
+							SetTriangleCoverageBit(uvec2(x, y), triangleIdx, triangleBinIntersect || binInsideTriangle || triangleInsideBin);	
 					}
 				}
 			}						
@@ -172,10 +217,7 @@ void main()
 							{
 							for(uint j = binStart.y; j < binEnd.y; j++)
 							{
-								if(uvec2(x, y) == uvec2(1, 1))
 								imageStore(testTex, ivec2(i, j), vec4(0, 1, 0, 1));
-								else
-								imageStore(testTex, ivec2(i, j), vec4(1, 1, 1, 1));
 							}
 							}
 						}
@@ -218,4 +260,50 @@ bool GetTriangleCoverageBit(uvec2 bin, uint triangleId)
 	uint bitOffset = triangleId % 32;
 
 	return bool(binRasterizerTempOutput[binStartIndex + innerBinOffset] & (1 << bitOffset));
+}
+
+// TODO: Duplicate
+float EdgeFunction(in vec2 p1, in vec2 p2, in vec2 test_point)
+{
+	return (test_point.x - p1.x) * (p2.y - p1.y) - (test_point.y - p1.y) * (p2.x - p1.x);
+}
+
+vec2 Perpendicular(in vec2 vec)
+{
+	vec2 res; 
+	if(abs(vec.x) < 1e-5 || abs(vec.y) < 1e-5)
+		res = vec2(vec.y, vec.x);
+	else
+	{
+		res.y = 1;
+		res.x = -vec.y * res.y / vec.x;
+	}
+	return normalize(res);
+}
+
+bool PointInTriangle(vec2 point, vec2 v1, vec2 v2, vec2 v3)
+{
+	float d1 = EdgeFunction(v1, v2, point);
+	float d2 = EdgeFunction(v2, v3, point);
+	float d3 = EdgeFunction(v3, v1, point);
+
+	return d1 > 0 && d2 > 0 && d3 > 0;
+}
+
+bool PointInAABB(vec2 point, vec2 v1, vec2 v2, vec2 v3, vec2 v4)
+{
+	return false;
+}
+
+bool SegmentsIntersect(vec2 A, vec2 B, vec2 C, vec2 D)
+{
+	vec2 O1 = A;
+	vec2 O2 = C;
+	vec2 D1  = B - A;
+	vec2 D2 = D - C;
+	vec2 D1Perp = Perpendicular(D1);
+	vec2 D2Perp = Perpendicular(D2);
+	float s = dot(O2 - O1, D2Perp) / dot(D1, D2Perp);
+	float t = dot(O1 - O2, D1Perp) / dot(D2, D1Perp);
+	return s >= 0 && s <= 1 && t >= 0 && t <= 1;
 }
