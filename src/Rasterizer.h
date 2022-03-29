@@ -57,7 +57,8 @@ public:
 			indexBuffer = SSBO::Create(indexData, indexBufferSize);
 			auto triCount = indexBuffer->GetSize() / 3 / sizeof(uint32_t);
 			triangleSetupBuffer = SSBO::Create(nullptr, triCount * sizeof(glm::vec4) * 3);
-			outTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(1024, 1024);
+			binRasterizerOutTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(texSize, texSize);
+			coarseRasterizerOutTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(texSize, texSize);
 			atomics = AtomicCounterBuffer::Create(nullptr, atomicBufferSize);
 			uniforms = UBO::Create((void*)&params, sizeof(params));
 			perBinTriangleIndices = SSBO::Create(nullptr, 0);
@@ -67,12 +68,14 @@ public:
 		std::shared_ptr<SSBO> indexBuffer;
 		std::shared_ptr<SSBO> triangleSetupBuffer;
 		std::shared_ptr<SSBO> perBinTriangleIndices;
-		std::shared_ptr<Texture2D> outTex;
+		std::shared_ptr<Texture2D> binRasterizerOutTex;
+		std::shared_ptr<Texture2D> coarseRasterizerOutTex;
 		std::shared_ptr<AtomicCounterBuffer> atomics;
 		std::shared_ptr<UBO> uniforms;
 		RasterizationParams rasterParams;
 		constexpr static uint16_t binCount = 256;
-		constexpr static uint16_t atomicBufferSize = 16 + 4 * binCount;
+		constexpr static uint16_t atomicBufferSize = 20 + 4 * binCount;
+		constexpr static uint16_t texSize = 1024;
 	};
 	Rasterizer();
 	~Rasterizer() = default;
@@ -86,4 +89,5 @@ private:
 	std::shared_ptr<UBO> m_raster_params_ubo;
 	std::shared_ptr<ComputeProgram> m_triangleSetupProgram;
 	std::shared_ptr<ComputeProgram> m_binRasterizerProgram;
+	std::shared_ptr<ComputeProgram> m_coarseRasterizerProgram;
 };

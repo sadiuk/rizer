@@ -30,9 +30,9 @@ shared uint binStartIndices[BIN_COUNT.x * BIN_COUNT.y];
 
 void SetTriangleCoverageBit(uvec2 bin, uint triangleId, bool overlaps);
 bool GetTriangleCoverageBit(uvec2 bin, uint triangleId);
+//TODO: Duplicate
 void GetTriangle2DAABB(in vec4 screenPos[3], out AABB2D aabb);
 bool PointInTriangle(vec2 point, vec2 v1, vec2 v2, vec2 v3);
-bool PointInAABB(vec2 point, vec2 v1, vec2 v2, vec2 v3, vec2 v4);
 bool SegmentsIntersect(vec2 s1, vec2 s2, vec2 p1, vec2 p2);
 
 
@@ -55,7 +55,7 @@ layout(binding = 3, offset = 4) uniform atomic_uint triangleCount;
 layout(binding = 3, offset = 8) uniform atomic_uint snappedTriangleCount;
 layout(binding = 3, offset = 12) uniform atomic_uint startedTriangleCounter;
 layout(binding = 3, offset = 16) uniform atomic_uint processedTriangleCounter;
-layout(binding = 3, offset = 20) uniform atomic_uint perBinTriangleCount[BIN_COUNT.x * BIN_COUNT.y];
+layout(binding = 3, offset = 24) uniform atomic_uint perBinTriangleCount[BIN_COUNT.x * BIN_COUNT.y];
 
 //test
 layout(binding = 4, rgba8) uniform image2D testTex;
@@ -84,7 +84,7 @@ void main()
 			vec2 binSizeRelative = vec2(2.0, 2.0) / vec2(BIN_COUNT);
 			uvec2 bottomLeftBin = uvec2(clamp(((aabb.minPos * 0.5) + 0.5) * BIN_COUNT, vec2(0), vec2(BIN_COUNT - 1)));
 			uvec2 topRightBin = uvec2(clamp(((aabb.maxPos * 0.5) + 0.5) * BIN_COUNT, vec2(0), vec2(BIN_COUNT - 1)));
-			uvec2 areaSize = uvec2(abs(topRightBin - bottomLeftBin));
+			uvec2 areaSize = topRightBin - bottomLeftBin + 1;
 			// Clear the memory for the triangle
 			for(uint y = 0; y < BIN_COUNT.y; ++y)
 			{
@@ -141,25 +141,8 @@ void main()
 						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[1].xy, binStart + vec2(0, binSizeRelative.y), binStart);
 						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[1].xy, triangle.screenPos[2].xy, binStart + vec2(0, binSizeRelative.y), binStart);
 						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[2].xy, binStart + vec2(0, binSizeRelative.y), binStart);
-							
-							//test
-//							if(triangleInsideBin)
-//							{
-//								perBinTriangleIndices[0] = debugFloat(binStart.x);
-//								perBinTriangleIndices[1] = debugFloat(binStart.y);
-//								perBinTriangleIndices[2] = debugFloat(binEnd.x);
-//								perBinTriangleIndices[3] = debugFloat(binEnd.y);
-//
-//								perBinTriangleIndices[4] = debugFloat(triangle.screenPos[0].x);
-//								perBinTriangleIndices[5] = debugFloat(triangle.screenPos[0].y);
-//								perBinTriangleIndices[6] = debugFloat(triangle.screenPos[1].x);
-//								perBinTriangleIndices[7] = debugFloat(triangle.screenPos[1].y);
-//								perBinTriangleIndices[8] = debugFloat(triangle.screenPos[2].x);
-//								perBinTriangleIndices[9] = debugFloat(triangle.screenPos[2].y);
-//
-//
-//							}
-							SetTriangleCoverageBit(uvec2(x, y), triangleIdx, triangleBinIntersect || binInsideTriangle || triangleInsideBin);	
+
+						SetTriangleCoverageBit(uvec2(x, y), triangleIdx, triangleBinIntersect || binInsideTriangle || triangleInsideBin);	
 					}
 				}
 			}						
@@ -173,6 +156,8 @@ void main()
 				for(uint x = 0; x < BIN_COUNT.x; ++x)
 				{
 					prefixSum[gl_LocalInvocationID.x] = int(GetTriangleCoverageBit(uvec2(x, y), gl_LocalInvocationID.x));
+					barrier();
+					memoryBarrierShared();
 					for(int stage = 0; stage < stages; stage++)
 					{
 						uint readOffset = (stage & 1) * LOCAL_SIZE_X; // half of the shared memory that we will read from
@@ -186,7 +171,7 @@ void main()
 
 						if(add)
 						{
-							prefixSum[writeIndex] += prefixSum[readIndex] + prefixSum[oldIndex];
+							prefixSum[writeIndex] = prefixSum[readIndex] + prefixSum[oldIndex];
 						}
 						else
 						{
@@ -195,12 +180,14 @@ void main()
 						barrier();
 						memoryBarrierShared();
 					}
+					uint trianglesInBatch = min(LOCAL_SIZE_X, atomicCounter(triangleCount) - triangleSharedIndex);
 					uint binIndex = y * BIN_COUNT.x + x;
 					uint readIndex = (stages & 1) * LOCAL_SIZE_X + gl_LocalInvocationID.x;
 					uint outpIndex = prefixSum[readIndex];
 					if(gl_LocalInvocationID.x == 0)
 					{
-						binStartIndices[binIndex] = atomicCounterAdd(perBinTriangleCount[binIndex], outpIndex);
+						uint triCount = prefixSum[(stages & 1) * LOCAL_SIZE_X + trianglesInBatch - 1];
+						binStartIndices[binIndex] = atomicCounterAdd(perBinTriangleCount[binIndex], triCount);
 					}
 					barrier();
 					memoryBarrierShared();
@@ -228,11 +215,33 @@ void main()
 		}
 		if(gl_LocalInvocationID.x == 0)
 		{
-			triangleSharedIndex = atomicCounterAdd(startedTriangleCounter, LOCAL_SIZE_X);
+			atomicCounterAdd(startedTriangleCounter, LOCAL_SIZE_X);
+			triangleSharedIndex = atomicCounter(startedTriangleCounter);
 		}
 		barrier();
 		memoryBarrier();
 		memoryBarrierShared();
+
+		//test
+		if(gl_GlobalInvocationID.xy == uvec2(0, 0))
+		for(uint y = 0; y < BIN_COUNT.y; ++y)
+		for(uint x = 0; x < BIN_COUNT.x; ++x)
+		{
+			uint binIndex = y * BIN_COUNT.x + x;
+			vec2 binSize = IMAGE_SIZE / BIN_COUNT;
+			uvec2 binStart = uvec2(x, y) * uvec2(binSize);
+			uvec2 binEnd = binStart + uvec2(binSize);
+			for(uint i = binStart.x; i < binEnd.x; i++)
+			{
+				for(uint j = binStart.y; j < binEnd.y; j++)
+				{
+					if(atomicCounter(perBinTriangleCount[binIndex]) == 1)
+						imageStore(testTex, ivec2(i, j), vec4(0, 1, 0, 1));
+					else if(atomicCounter(perBinTriangleCount[binIndex]) == 2)
+						imageStore(testTex, ivec2(i, j), vec4(1, 1, 0, 1));
+				}
+			}
+		}
 	}
 }
 
@@ -246,6 +255,7 @@ void GetTriangle2DAABB(in vec4 screenPos[3], out AABB2D aabb)
 
 void SetTriangleCoverageBit(uvec2 bin, uint triangleId, bool overlaps)
 {
+	triangleId %= LOCAL_SIZE_X;
 	uint binStartIndex = (BIN_COUNT.x * bin.y + bin.x) * SHARED_MEMORY_BIN_STRIDE;
 	uint innerBinOffset = triangleId / 32;
 	uint bitOffset = triangleId % 32;
@@ -255,6 +265,7 @@ void SetTriangleCoverageBit(uvec2 bin, uint triangleId, bool overlaps)
 
 bool GetTriangleCoverageBit(uvec2 bin, uint triangleId)
 {
+	triangleId %= LOCAL_SIZE_X;
 	uint binStartIndex = (BIN_COUNT.x * bin.y + bin.x) * SHARED_MEMORY_BIN_STRIDE;
 	uint innerBinOffset = triangleId / 32;
 	uint bitOffset = triangleId % 32;
@@ -288,11 +299,6 @@ bool PointInTriangle(vec2 point, vec2 v1, vec2 v2, vec2 v3)
 	float d3 = EdgeFunction(v3, v1, point);
 
 	return d1 > 0 && d2 > 0 && d3 > 0;
-}
-
-bool PointInAABB(vec2 point, vec2 v1, vec2 v2, vec2 v3, vec2 v4)
-{
-	return false;
 }
 
 bool SegmentsIntersect(vec2 A, vec2 B, vec2 C, vec2 D)

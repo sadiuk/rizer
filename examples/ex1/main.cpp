@@ -185,15 +185,15 @@ public:
 			glm::vec3{-10, 1, -20  },
 			glm::vec3{-5, 10, -20   },
 			glm::vec3{ 0, 1, -20   },
-			glm::vec3{ 0, 1, -20 },
-			glm::vec3{ 5, 10, -20   },
-			glm::vec3{ 10, 1, -20  }
+			glm::vec3{ -3, 1, -20 },
+			glm::vec3{ 2, 10, -20   },
+			glm::vec3{ 7, 1, -20  }
 		};
 		glm::uvec3 indices[2] = { glm::uvec3{ 0, 1, 2 }, glm::uvec3{3, 4, 5 } };
 
 
 		Rasterizer::InputParams inputParams((void*)vertices, sizeof vertices, (void*)indices, sizeof indices, params);
-		fbo->AttachTexture(inputParams.outTex.get());
+		fbo->AttachTexture(inputParams.binRasterizerOutTex.get());
 		fbo->Bind();
 
 		while (ShouldRun() && m_should_run)

@@ -9,8 +9,9 @@ Rasterizer::Rasterizer()
 
 void Rasterizer::CompileShaderWithStaticParams()
 {
-	m_triangleSetupProgram = ComputeProgram::CreateProgramFromFile("C:/dev/rizer/src/glsl/rasterizer_new.comp");
+	m_triangleSetupProgram = ComputeProgram::CreateProgramFromFile("C:/dev/rizer/src/glsl/triangle_setup.comp");
 	m_binRasterizerProgram = ComputeProgram::CreateProgramFromFile("C:/dev/rizer/src/glsl/bin_rasterizer.comp");
+	m_coarseRasterizerProgram = ComputeProgram::CreateProgramFromFile("C:/dev/rizer/src/glsl/coarse_rasterizer.comp");
 }
 
 void Rasterizer::Rasterize(const InputParams& params)
@@ -39,9 +40,18 @@ void Rasterizer::Rasterize(const InputParams& params)
 	//TODO: Bind snapped triangles
 	m_context->BindSSBO(params.perBinTriangleIndices.get(), 2);
 	m_context->BindAtomicCounterBuffer(params.atomics.get(), 3);
-	m_context->BindTexture2D(params.outTex.get(), 4);
+	m_context->BindTexture2D(params.binRasterizerOutTex.get(), 4);
 	m_context->BindComputeProgram(m_binRasterizerProgram.get());
 	m_context->Dispatch(1, 1, 1); // TODO optimal dispatch count
 	m_context->PipelineBarrier(GL_ALL_BARRIER_BITS);
+
+	//m_context->BindComputeProgram(m_coarseRasterizerProgram.get());
+	//m_context->BindSSBO(params.triangleSetupBuffer.get(), 3);
+	//m_context->BindSSBO(params.perBinTriangleIndices.get(), 2);
+	//m_context->BindAtomicCounterBuffer(params.atomics.get(), 3);
+	//m_context->BindTexture2D(params.coarseRasterizerOutTex.get(), 4);
+	//m_context->Dispatch(1, 1, 1); // TODO optimal dispatch count
+	//m_context->PipelineBarrier(GL_ALL_BARRIER_BITS);
+
 }
 
