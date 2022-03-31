@@ -2,10 +2,12 @@
 #include <../src/fs/FileManager.h>
 #include "../src/Rasterizer.h"
 #include "../src/OpenGL/Framebuffer.h"
+#include "../../src/fs/OBJLoader.h"
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <wtypes.h>
 #include <iostream>
-#include <glm/gtc/matrix_transform.hpp>
-#include "../../src/fs/OBJLoader.h"
+#include <functional>
 
 class RasterizerApp : App
 {
@@ -65,7 +67,9 @@ public:
 			break;
 		}
 		}
+		additionalOnKeyPress(key, scancode, action, mods);
 	}
+	std::function<void(int, int, int, int)> additionalOnKeyPress;
 	//TODO make this function threadsafe XD
 	void OnMouseMove(double xpos, double ypos) override
 	{
@@ -147,13 +151,13 @@ public:
 		}
 		return res;
 	}
-	void getTriangleAABB(glm::vec4 a, glm::vec4 b, glm::vec4 c, AABB& aabb)
+	/*void getTriangleAABB(glm::vec4 a, glm::vec4 b, glm::vec4 c, AABB& aabb)
 	{
 		glm::vec4 minV = glm::vec4(glm::min(glm::min(a, b), c));
 		glm::vec4 maxV = glm::vec4(glm::max(glm::max(a, b), c));
 		aabb.center = (minV + maxV) / 2;
 		aabb.halfDiadonal = (maxV - minV) / 2;
-	}
+	}*/
 	
 	//test
 	glm::ivec2 getBinForCoord(glm::vec2 coord)
@@ -193,9 +197,24 @@ public:
 
 
 		Rasterizer::InputParams inputParams((void*)vertices, sizeof vertices, (void*)indices, sizeof indices, params);
-		fbo->AttachTexture(inputParams.binRasterizerOutTex.get());
+		fbo->AttachTexture(inputParams.coarseRasterizerOutTex.get());
 		fbo->Bind();
 
+		additionalOnKeyPress = [&](int key, int scancode, int action, int mods)
+		{
+			if (action == GLFW_PRESS)
+			{
+				switch (key)
+				{
+				case GLFW_KEY_E:
+					fbo->AttachTexture(inputParams.binRasterizerOutTex.get());
+					break;
+				case GLFW_KEY_R:
+					fbo->AttachTexture(inputParams.coarseRasterizerOutTex.get());
+					break;
+				}
+			}
+		};
 		while (ShouldRun() && m_should_run)
 		{
 			//inputParams.outTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(2048, 2048);
@@ -212,7 +231,7 @@ public:
 			ExtractViewFrustumPlanesFromMVP(inputParams.rasterParams.proj * inputParams.rasterParams.view * inputParams.rasterParams.model, inputParams.rasterParams.planes);
 			inputParams.uniforms->Update((void*)&inputParams.rasterParams, sizeof(inputParams.rasterParams));
 			// TODO: delete when debug finished
-			for (int i = 0; i < sizeof(vertices) / sizeof(glm::vec4); i += 3)
+			/*for (int i = 0; i < sizeof(vertices) / sizeof(glm::vec4); i += 3)
 			{
 				auto v1 = vertices[i];
 				auto v2 = vertices[i + 1];
@@ -221,7 +240,7 @@ public:
 				AABB aabb;
 				getTriangleAABB(inputParams.rasterParams.model * glm::vec4(v1, 1), inputParams.rasterParams.model * glm::vec4(v2, 1), inputParams.rasterParams.model * glm::vec4(v3, 1), aabb);
 				auto res = testFrustumAgainstAABB(inputParams.rasterParams.planes, aabb);
-			}
+			}*/
 			rasterizer.Rasterize(inputParams);
 			context->BlitFramebuffer(fbo.get());
 			EndScene();
