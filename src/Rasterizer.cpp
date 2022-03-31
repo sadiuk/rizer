@@ -45,13 +45,13 @@ void Rasterizer::Rasterize(const InputParams& params)
 	m_context->Dispatch(1, 1, 1); // TODO optimal dispatch count
 	m_context->PipelineBarrier(GL_ALL_BARRIER_BITS);
 
-	//m_context->BindComputeProgram(m_coarseRasterizerProgram.get());
-	//m_context->BindSSBO(params.triangleSetupBuffer.get(), 3);
-	//m_context->BindSSBO(params.perBinTriangleIndices.get(), 2);
-	//m_context->BindAtomicCounterBuffer(params.atomics.get(), 3);
-	//m_context->BindTexture2D(params.coarseRasterizerOutTex.get(), 4);
-	//m_context->Dispatch(1, 1, 1); // TODO optimal dispatch count
-	//m_context->PipelineBarrier(GL_ALL_BARRIER_BITS);
+	m_context->BindComputeProgram(m_coarseRasterizerProgram.get());
+	m_context->BindSSBO(params.triangleSetupBuffer.get(), 3);
+	m_context->BindSSBO(params.perBinTriangleIndices.get(), 2);
+	m_context->BindAtomicCounterBuffer(params.atomics.get(), 3);
+	m_context->BindTexture2D(params.coarseRasterizerOutTex.get(), 4);
+	m_context->Dispatch(1, 1, 1); // TODO optimal dispatch count
+	m_context->PipelineBarrier(GL_ALL_BARRIER_BITS);
 
 }
 
