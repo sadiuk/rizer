@@ -20,7 +20,7 @@ struct AABB2D
 #define IMAGE_SIZE uvec2(1024, 1024)
 #define SHARED_MEMORY_BIT_SIZE BIN_COUNT.x * BIN_COUNT.y * LOCAL_SIZE_X
 #define SHARED_MEMORY_INT_SIZE SHARED_MEMORY_BIT_SIZE / 32
-#define SHARED_MEMORY_BIN_STRIDE SHARED_MEMORY_INT_SIZE / (BIN_COUNT.x * BIN_COUNT.y)
+#define SHARED_MEMORY_INVOCATION_STRIDE BIN_COUNT.x * BIN_COUNT.y / 32
 
 shared uint binRasterizerTempOutput[SHARED_MEMORY_INT_SIZE];
 shared uint prefixSum[LOCAL_SIZE_X * 2];
@@ -142,7 +142,12 @@ void main()
 						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[1].xy, triangle.screenPos[2].xy, binStart + vec2(0, binSizeRelative.y), binStart);
 						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[2].xy, binStart + vec2(0, binSizeRelative.y), binStart);
 
-						SetTriangleCoverageBit(uvec2(x, y), triangleIdx, triangleBinIntersect || binInsideTriangle || triangleInsideBin);	
+						SetTriangleCoverageBit(uvec2(x, y), triangleIdx, triangleBinIntersect || binInsideTriangle || triangleInsideBin);
+						if(true)
+						{
+						SetTriangleCoverageBit(uvec2(x, y), triangleIdx, triangleBinIntersect || binInsideTriangle || triangleInsideBin);
+
+						}
 					}
 				}
 			}						
@@ -275,21 +280,26 @@ void GetTriangle2DAABB(in vec4 screenPos[3], out AABB2D aabb)
 void SetTriangleCoverageBit(uvec2 bin, uint triangleId, bool overlaps)
 {
 	triangleId %= LOCAL_SIZE_X;
-	uint binStartIndex = (BIN_COUNT.x * bin.y + bin.x) * SHARED_MEMORY_BIN_STRIDE;
-	uint innerBinOffset = triangleId / 32;
-	uint bitOffset = triangleId % 32;
+	uint binIdx = BIN_COUNT.x * bin.y + bin.x;
+	uint triStartIndex = triangleId * SHARED_MEMORY_INVOCATION_STRIDE;
+	uint binOffset = binIdx / 32;
+	uint bitOffset = binIdx % 32;
 
-	binRasterizerTempOutput[binStartIndex + innerBinOffset] ^= (-int(overlaps) ^ binRasterizerTempOutput[binStartIndex + innerBinOffset]) & (1 << bitOffset);
+	uint old = binRasterizerTempOutput[triStartIndex + binOffset];
+	memoryBarrierShared();
+	binRasterizerTempOutput[triStartIndex + binOffset] ^= (-int(overlaps) ^ old) & (1 << bitOffset);
 }
 
 bool GetTriangleCoverageBit(uvec2 bin, uint triangleId)
 {
 	triangleId %= LOCAL_SIZE_X;
-	uint binStartIndex = (BIN_COUNT.x * bin.y + bin.x) * SHARED_MEMORY_BIN_STRIDE;
-	uint innerBinOffset = triangleId / 32;
-	uint bitOffset = triangleId % 32;
+	uint binIdx = BIN_COUNT.x * bin.y + bin.x;
+	uint triStartIndex = triangleId * SHARED_MEMORY_INVOCATION_STRIDE;
+	uint binOffset = binIdx / 32;
+	uint bitOffset = binIdx % 32;
 
-	return bool(binRasterizerTempOutput[binStartIndex + innerBinOffset] & (1 << bitOffset));
+	memoryBarrierShared();
+	return bool(binRasterizerTempOutput[triStartIndex + binOffset] & (1 << bitOffset));
 }
 
 // TODO: Duplicate
