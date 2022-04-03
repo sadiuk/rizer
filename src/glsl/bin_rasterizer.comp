@@ -286,7 +286,6 @@ void SetTriangleCoverageBit(uvec2 bin, uint triangleId, bool overlaps)
 	uint bitOffset = binIdx % 32;
 
 	uint old = binRasterizerTempOutput[triStartIndex + binOffset];
-	memoryBarrierShared();
 	binRasterizerTempOutput[triStartIndex + binOffset] ^= (-int(overlaps) ^ old) & (1 << bitOffset);
 }
 
@@ -297,8 +296,6 @@ bool GetTriangleCoverageBit(uvec2 bin, uint triangleId)
 	uint triStartIndex = triangleId * SHARED_MEMORY_INVOCATION_STRIDE;
 	uint binOffset = binIdx / 32;
 	uint bitOffset = binIdx % 32;
-
-	memoryBarrierShared();
 	return bool(binRasterizerTempOutput[triStartIndex + binOffset] & (1 << bitOffset));
 }
 
