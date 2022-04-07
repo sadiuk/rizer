@@ -143,11 +143,6 @@ void main()
 						triangleBinIntersect = triangleBinIntersect || SegmentsIntersect(triangle.screenPos[0].xy, triangle.screenPos[2].xy, binStart + vec2(0, binSizeRelative.y), binStart);
 
 						SetTriangleCoverageBit(uvec2(x, y), triangleIdx, triangleBinIntersect || binInsideTriangle || triangleInsideBin);
-						if(true)
-						{
-						SetTriangleCoverageBit(uvec2(x, y), triangleIdx, triangleBinIntersect || binInsideTriangle || triangleInsideBin);
-
-						}
 					}
 				}
 			}						
@@ -227,6 +222,7 @@ void main()
 									{
 										imageStore(testTex, ivec2(i, j), vec4(0, 1, 1, 1));
 									}
+									
 								}
 								
 							}
