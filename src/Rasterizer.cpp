@@ -54,8 +54,9 @@ void Rasterizer::Rasterize(const InputParams& params)
 	uint32_t perBinTriangleCountPrefixSum[Rasterizer::InputParams::binCount] = {};
 	m_context->GetBufferSubData(params.atomics.get(), 24, Rasterizer::InputParams::binCount * sizeof(uint32_t), (void*) perBinTriangleCount);
 	std::partial_sum(perBinTriangleCount, perBinTriangleCount + Rasterizer::InputParams::binCount, perBinTriangleCountPrefixSum);
-	std::transform(perBinTriangleCountPrefixSum, perBinTriangleCountPrefixSum + Rasterizer::InputParams::binCount, perBinTriangleCountPrefixSum, [](uint32_t el) { return el * Rasterizer::InputParams::tilesPerBin; });
+	//std::transform(perBinTriangleCountPrefixSum, perBinTriangleCountPrefixSum + Rasterizer::InputParams::binCount, perBinTriangleCountPrefixSum, [](uint32_t el) { return el * Rasterizer::InputParams::tilesPerBin; });
 	params.perBinTriangleCountPrefixSum->Update(perBinTriangleCountPrefixSum, Rasterizer::InputParams::binCount * sizeof(uint32_t));
+	params.perTileTriangleIndices->Update(nullptr, perBinTriangleCountPrefixSum[Rasterizer::InputParams::binCount - 1] * Rasterizer::InputParams::tileCount * sizeof(uint32_t));
 
 	m_context->BindComputeProgram(m_coarseRasterizerProgram.get());
 	m_context->BindSSBO(params.triangleSetupBuffer.get(), 3);
@@ -64,6 +65,7 @@ void Rasterizer::Rasterize(const InputParams& params)
 	m_context->BindTexture2D(params.coarseRasterizerOutTex.get(), 4);
 	m_context->BindSSBO(params.perTileTriangleCount.get(), 5);
 	m_context->BindSSBO(params.perBinTriangleCountPrefixSum.get(), 6);
+	m_context->BindSSBO(params.perTileTriangleIndices.get(), 7);
 	m_context->Dispatch(1, 1, 1); // TODO optimal dispatch count
 	m_context->PipelineBarrier(GL_ALL_BARRIER_BITS);
 

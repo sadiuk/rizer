@@ -62,6 +62,7 @@ public:
 			atomics = AtomicCounterBuffer::Create(nullptr, atomicBufferSize);
 			uniforms = UBO::Create((void*)&params, sizeof(params));
 			perBinTriangleIndices = SSBO::Create(nullptr, 0);
+			perTileTriangleIndices = SSBO::Create(nullptr, 0);
 			perBinTriangleCountPrefixSum = SSBO::Create(nullptr, binCount * sizeof(uint32_t));
 			perTileTriangleCount = SSBO::Create(nullptr, tileCount * sizeof(uint32_t));
 		}
@@ -70,6 +71,7 @@ public:
 		std::shared_ptr<SSBO> indexBuffer;
 		std::shared_ptr<SSBO> triangleSetupBuffer;
 		std::shared_ptr<SSBO> perBinTriangleIndices;
+		std::shared_ptr<SSBO> perTileTriangleIndices;
 		std::shared_ptr<SSBO> perBinTriangleCountPrefixSum;
 		std::shared_ptr<SSBO> perTileTriangleCount;
 		std::shared_ptr<Texture2D> binRasterizerOutTex;
