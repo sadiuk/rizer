@@ -98,4 +98,5 @@ private:
 	std::shared_ptr<ComputeProgram> m_triangleSetupProgram;
 	std::shared_ptr<ComputeProgram> m_binRasterizerProgram;
 	std::shared_ptr<ComputeProgram> m_coarseRasterizerProgram;
+	std::shared_ptr<ComputeProgram> m_fineRasterizerProgram;
 };

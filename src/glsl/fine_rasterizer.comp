@@ -1,0 +1,194 @@
+#version 460 core
+
+
+//TODO: increase local size to at least 64 to increase occupancy (will need to rewrite some stuff)
+#define LOCAL_SIZE_X 32
+layout(local_size_x = LOCAL_SIZE_X) in;
+
+#define IMAGE_SIZE uvec2(1024, 1024)
+#define BIN_COUNT uvec2(16, 16)
+#define BIN_COUNT_LINEAR BIN_COUNT.x * BIN_COUNT.y
+#define TILE_COUNT uvec2(8, 8)
+#define TILE_COUNT_LINEAR TILE_COUNT.x * TILE_COUNT.y
+#define TILES_IN_IMAGE BIN_COUNT_LINEAR * TILE_COUNT_LINEAR
+#define PIXELS_IN_TILE IMAGE_SIZE / BIN_COUNT / TILE_COUNT
+#define PIXELS_IN_TILE_LINEAR int(PIXELS_IN_TILE.x * PIXELS_IN_TILE.y)
+
+
+//TODO: proper ring buffer size
+#define RING_BUFFER_SIZE LOCAL_SIZE_X * 4
+
+struct SetupTriangleData
+{
+	vec4 screenPos[3];
+};
+
+struct AABB2D
+{
+	vec2 minPos, maxPos;
+};
+
+layout(std430, binding = 0) readonly buffer TriangleData
+{
+	SetupTriangleData triangles[];
+};
+
+layout(std430, binding = 1) readonly buffer SnappedTriangleData
+{
+	SetupTriangleData snappedTriangles[];
+};
+
+layout(binding = 2, offset = 0) uniform atomic_uint currentTileCounter;
+
+layout(binding = 3, rgba8) uniform image2D outTex;
+
+layout(std430, binding = 4) buffer PerTileTriangleCount
+{
+	uint perTileTriangleCount[];
+};
+// A prefix sum of (the max triangle capacity for each bin) * (number of tiles in a bin)
+layout(std430, binding = 5) buffer PerBinTriangleCountPrefixSum
+{
+	uint perBinTriangleCountPrefixSum[];
+};
+
+layout(std430, binding = 6) buffer PerTileIndices
+{
+	uint perTileTriangleIndices[];
+};
+
+
+shared uint currentTile;
+shared uint processedTriangles;
+shared uvec2 ringBufferRange;
+shared uvec2 ringBuffer[RING_BUFFER_SIZE];
+
+shared bool shadingStage;
+
+shared vec4 colorBuffer[PIXELS_IN_TILE_LINEAR];
+shared float depthBuffer[PIXELS_IN_TILE_LINEAR];
+
+float EdgeFunction(in vec2 p1, in vec2 p2, in vec2 test_point);	
+bool PointInTriangle(vec2 point, vec2 v1, vec2 v2, vec2 v3);
+
+const vec2 binSize = IMAGE_SIZE / BIN_COUNT;
+const vec2 binSizeRelative = vec2(2.0, 2.0) / vec2(BIN_COUNT);
+const vec2 tileSizeRelative = binSizeRelative / TILE_COUNT;
+const vec2 pixelSizeRelative = PIXELS_IN_TILE / tileSizeRelative;
+const vec2 pixelHalfSizeRelative = pixelSizeRelative * 0.5;
+
+void main()
+{
+	if(gl_LocalInvocationID.x == 0)
+	{
+		currentTile = atomicCounterIncrement(currentTileCounter);
+		ringBufferRange = uvec2(0, 0);
+		shadingStage = false;
+	}
+	barrier();
+	memoryBarrierShared();
+	
+	while(currentTile < TILES_IN_IMAGE)
+	{
+		
+		if(gl_LocalInvocationID.x == 0)
+		{
+
+		}
+		uvec2 tileIndex = uvec2(currentTile % TILE_COUNT.x, currentTile / TILE_COUNT.x); 
+		uvec2 binIndex = tileIndex / TILE_COUNT;
+		uint currentBin = binIndex.y * BIN_COUNT.x + binIndex.x;
+		vec2 tileStart = tileIndex * tileSizeRelative; 
+		
+		uint trisInTile = perTileTriangleCount[currentTile];
+		if(gl_LocalInvocationID.x == 0)
+		{
+			processedTriangles = 0;
+		}
+		while(processedTriangles < trisInTile)
+		{
+			uint indexOfTriangleIndex = processedTriangles + LOCAL_SIZE_X;
+			if(indexOfTriangleIndex < trisInTile)
+			{
+				uint binOffset = currentBin == 0 ? 0 : perBinTriangleCountPrefixSum[currentBin - 1];
+				uint maxTrianglesInTile = (perBinTriangleCountPrefixSum[currentBin] - binOffset);
+				uint indexOfTriangleIndexInSSBO = binOffset * TILE_COUNT_LINEAR + currentTile * maxTrianglesInTile + indexOfTriangleIndex;
+				
+				uint triangleIdx = perTileTriangleIndices[indexOfTriangleIndexInSSBO];
+				SetupTriangleData triangle = triangles[triangleIdx];
+				
+				// TODO: triangle coverage calculation
+				// TODO: might have a fancy coverage test from the paper but for now we'll have this
+				// TODO: detect ovelflows!!!!!
+				{
+					uint oldEnd = atomicAdd(ringBufferRange.y, PIXELS_IN_TILE_LINEAR);
+					for(uint y = 0; y < uint(PIXELS_IN_TILE.y); ++y)
+					{
+						for(uint x = 0; x < uint(PIXELS_IN_TILE.x); ++x)
+						{
+							vec2 pixelCenterCoord = tileStart + vec2(x, y) * pixelSizeRelative + pixelHalfSizeRelative;
+							bool inside = PointInTriangle(pixelCenterCoord, triangle.screenPos[0].xy, triangle.screenPos[1].xy, triangle.screenPos[2].xy);
+							if(inside)
+							{
+								uint fragIdx = y * uint(PIXELS_IN_TILE.x) + x;
+								ringBuffer[(oldEnd + fragIdx) / RING_BUFFER_SIZE] = uvec2(triangleIdx, fragIdx);
+							}
+						}
+					}
+				}
+				barrier();
+				memoryBarrierShared();
+
+				
+			}
+
+			if(gl_LocalInvocationID.x == 0)
+			{
+				if(!shadingStage) processedTriangles += LOCAL_SIZE_X;
+				shadingStage = ringBufferRange[1] - ringBufferRange[0] >= 32 || processedTriangles > trisInTile;
+			}
+			barrier();
+			memoryBarrierShared();
+			if(shadingStage)
+			{
+				// TODO: test if we're not gonna be 1 fragment short
+				while(ringBufferRange[1] - ringBufferRange[0] > 0)
+				{
+					uint fragIndex = atomicAdd(ringBufferRange[0], 1);
+					uvec2 fragment = ringBuffer[fragIndex];
+
+					// Shading itself
+
+
+
+					barrier();
+					memoryBarrierShared();
+				}
+			}
+		}
+
+
+		if(gl_LocalInvocationID.x == 0)
+		{
+			currentTile = atomicCounterIncrement(currentTileCounter);
+		}
+		barrier();
+		memoryBarrierShared();
+	}
+
+
+}
+
+float EdgeFunction(in vec2 p1, in vec2 p2, in vec2 test_point)
+{
+	return (test_point.x - p1.x) * (p2.y - p1.y) - (test_point.y - p1.y) * (p2.x - p1.x);
+}
+
+bool PointInTriangle(vec2 point, vec2 v1, vec2 v2, vec2 v3)
+{
+	float d1 = EdgeFunction(v1, v2, point);
+	float d2 = EdgeFunction(v2, v3, point);
+	float d3 = EdgeFunction(v3, v1, point);
+
+	return d1 > 0 && d2 > 0 && d3 > 0;
+}

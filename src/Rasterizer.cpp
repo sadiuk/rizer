@@ -13,6 +13,7 @@ void Rasterizer::CompileShaderWithStaticParams()
 	m_triangleSetupProgram = ComputeProgram::CreateProgramFromFile("C:/dev/rizer/src/glsl/triangle_setup.comp");
 	m_binRasterizerProgram = ComputeProgram::CreateProgramFromFile("C:/dev/rizer/src/glsl/bin_rasterizer.comp");
 	m_coarseRasterizerProgram = ComputeProgram::CreateProgramFromFile("C:/dev/rizer/src/glsl/coarse_rasterizer.comp");
+	m_fineRasterizerProgram = ComputeProgram::CreateProgramFromFile("C:/dev/rizer/src/glsl/fine_rasterizer.comp");
 }
 
 void Rasterizer::Rasterize(const InputParams& params)
