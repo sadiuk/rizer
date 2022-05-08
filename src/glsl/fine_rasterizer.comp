@@ -1,19 +1,18 @@
 #version 460 core
 
 
-//TODO: increase local size to at least 64 to increase occupancy (will need to rewrite some stuff)
-#define LOCAL_SIZE_X 32
+#define LOCAL_SIZE_X 64
 layout(local_size_x = LOCAL_SIZE_X) in;
 
 #define IMAGE_SIZE uvec2(1024, 1024)
 #define BIN_COUNT uvec2(16, 16)
-#define BIN_COUNT_LINEAR BIN_COUNT.x * BIN_COUNT.y
-#define TILE_COUNT uvec2(8, 8)
-#define TILE_COUNT_LINEAR TILE_COUNT.x * TILE_COUNT.y
-#define TILES_IN_IMAGE BIN_COUNT_LINEAR * TILE_COUNT_LINEAR
-#define PIXELS_IN_TILE IMAGE_SIZE / BIN_COUNT / TILE_COUNT
+#define BIN_COUNT_LINEAR int(int(BIN_COUNT.x) * int(BIN_COUNT.y))
+#define TILES_IN_BIN uvec2(8, 8)
+#define TILES_IN_BIN_LINEAR int(TILES_IN_BIN.x) * int(TILES_IN_BIN.y)
+#define TILES_IN_IMAGE uvec2(BIN_COUNT * TILES_IN_BIN)
+#define TILES_IN_IMAGE_LINEAR int(int(BIN_COUNT_LINEAR) * int(TILES_IN_BIN_LINEAR))
+#define PIXELS_IN_TILE uvec2(IMAGE_SIZE / BIN_COUNT / TILES_IN_BIN)
 #define PIXELS_IN_TILE_LINEAR int(PIXELS_IN_TILE.x * PIXELS_IN_TILE.y)
-
 
 //TODO: proper ring buffer size
 #define RING_BUFFER_SIZE LOCAL_SIZE_X * 4
@@ -73,7 +72,8 @@ bool PointInTriangle(vec2 point, vec2 v1, vec2 v2, vec2 v3);
 
 const vec2 binSize = IMAGE_SIZE / BIN_COUNT;
 const vec2 binSizeRelative = vec2(2.0, 2.0) / vec2(BIN_COUNT);
-const vec2 tileSizeRelative = binSizeRelative / TILE_COUNT;
+const vec2 tileSize = IMAGE_SIZE / TILES_IN_BIN;
+const vec2 tileSizeRelative = binSizeRelative / TILES_IN_BIN;
 const vec2 pixelSizeRelative = PIXELS_IN_TILE / tileSizeRelative;
 const vec2 pixelHalfSizeRelative = pixelSizeRelative * 0.5;
 
@@ -88,31 +88,41 @@ void main()
 	barrier();
 	memoryBarrierShared();
 	
-	while(currentTile < TILES_IN_IMAGE)
+	while(currentTile < TILES_IN_IMAGE_LINEAR)
 	{
-		
-		if(gl_LocalInvocationID.x == 0)
-		{
-
-		}
-		uvec2 tileIndex = uvec2(currentTile % TILE_COUNT.x, currentTile / TILE_COUNT.x); 
-		uvec2 binIndex = tileIndex / TILE_COUNT;
+		uvec2 tileIndex = uvec2(currentTile % int(TILES_IN_IMAGE.x), currentTile / int(TILES_IN_IMAGE.x)); 
+		uvec2 binIndex = tileIndex / TILES_IN_BIN;
 		uint currentBin = binIndex.y * BIN_COUNT.x + binIndex.x;
 		vec2 tileStart = tileIndex * tileSizeRelative; 
 		
+		// TODO: if clear!!
+		if(gl_LocalInvocationID.x < PIXELS_IN_TILE_LINEAR)
+		{
+			ivec2 texelPos = ivec2(tileIndex * PIXELS_IN_TILE) + ivec2(int(gl_LocalInvocationID.x) % int(PIXELS_IN_TILE.x), int(gl_LocalInvocationID.x) / int(PIXELS_IN_TILE.x)); 
+			imageStore(outTex, texelPos, vec4(0, 0, 0, 0));
+		}
+
 		uint trisInTile = perTileTriangleCount[currentTile];
+		if(trisInTile == 0)
+		{
+			if(gl_LocalInvocationID.x == 0) currentTile = atomicCounterIncrement(currentTileCounter);
+			barrier();
+			memoryBarrierShared();
+			continue;
+		}
 		if(gl_LocalInvocationID.x == 0)
 		{
 			processedTriangles = 0;
 		}
+		int k = 0;
 		while(processedTriangles < trisInTile)
 		{
-			uint indexOfTriangleIndex = processedTriangles + LOCAL_SIZE_X;
+			uint indexOfTriangleIndex = processedTriangles + gl_LocalInvocationID.x;
 			if(indexOfTriangleIndex < trisInTile)
 			{
 				uint binOffset = currentBin == 0 ? 0 : perBinTriangleCountPrefixSum[currentBin - 1];
 				uint maxTrianglesInTile = (perBinTriangleCountPrefixSum[currentBin] - binOffset);
-				uint indexOfTriangleIndexInSSBO = binOffset * TILE_COUNT_LINEAR + currentTile * maxTrianglesInTile + indexOfTriangleIndex;
+				uint indexOfTriangleIndexInSSBO = binOffset * TILES_IN_BIN_LINEAR + currentTile * maxTrianglesInTile + indexOfTriangleIndex;
 				
 				uint triangleIdx = perTileTriangleIndices[indexOfTriangleIndexInSSBO];
 				SetupTriangleData triangle = triangles[triangleIdx];
@@ -120,19 +130,18 @@ void main()
 				// TODO: triangle coverage calculation
 				// TODO: might have a fancy coverage test from the paper but for now we'll have this
 				// TODO: detect ovelflows!!!!!
+				for(uint y = 0; y < uint(PIXELS_IN_TILE.y); ++y)
 				{
-					uint oldEnd = atomicAdd(ringBufferRange.y, PIXELS_IN_TILE_LINEAR);
-					for(uint y = 0; y < uint(PIXELS_IN_TILE.y); ++y)
+					for(uint x = 0; x < uint(PIXELS_IN_TILE.x); ++x)
 					{
-						for(uint x = 0; x < uint(PIXELS_IN_TILE.x); ++x)
+						vec2 pixelCenterCoord = tileStart + vec2(x, y) * pixelSizeRelative + pixelHalfSizeRelative;
+						bool inside = true;PointInTriangle(pixelCenterCoord, triangle.screenPos[0].xy, triangle.screenPos[1].xy, triangle.screenPos[2].xy);
+						if(inside)
 						{
-							vec2 pixelCenterCoord = tileStart + vec2(x, y) * pixelSizeRelative + pixelHalfSizeRelative;
-							bool inside = PointInTriangle(pixelCenterCoord, triangle.screenPos[0].xy, triangle.screenPos[1].xy, triangle.screenPos[2].xy);
-							if(inside)
-							{
-								uint fragIdx = y * uint(PIXELS_IN_TILE.x) + x;
-								ringBuffer[(oldEnd + fragIdx) / RING_BUFFER_SIZE] = uvec2(triangleIdx, fragIdx);
-							}
+							uint oldEnd = atomicAdd(ringBufferRange.y, 1);
+							uint fragIdx = y * uint(PIXELS_IN_TILE.x) + x;
+
+							ringBuffer[(oldEnd + 1) % RING_BUFFER_SIZE] = uvec2(triangleIdx, fragIdx);
 						}
 					}
 				}
@@ -152,22 +161,36 @@ void main()
 			if(shadingStage)
 			{
 				// TODO: test if we're not gonna be 1 fragment short
-				while(ringBufferRange[1] - ringBufferRange[0] > 0)
+				uint fragIndex = atomicAdd(ringBufferRange[0], 1);
+				
+				uint i = 0;
+				while(int(ringBufferRange[1]) - int(fragIndex) > 0)
 				{
-					uint fragIndex = atomicAdd(ringBufferRange[0], 1);
-					uvec2 fragment = ringBuffer[fragIndex];
+					uvec2 fragment = ringBuffer[fragIndex % RING_BUFFER_SIZE];
 
-					// Shading itself
-
-
-
+					// Shading itself	
+					colorBuffer[fragment[1]] = vec4(1, 1, 1, 1);
+				
 					barrier();
 					memoryBarrierShared();
+					fragIndex = atomicAdd(ringBufferRange[0], 1);
 				}
+				fragIndex = atomicAdd(ringBufferRange[0], -1);
+
+				barrier();
+				memoryBarrierShared();
+				shadingStage = false;
 			}
 		}
-
-
+		if(gl_LocalInvocationID.x < PIXELS_IN_TILE_LINEAR)
+		{
+			ivec2 pixInTile = ivec2(int(gl_LocalInvocationID.x) % int(PIXELS_IN_TILE.x), int(gl_LocalInvocationID.x) / int(PIXELS_IN_TILE.x));
+			uint pixInTileLin = pixInTile.y * PIXELS_IN_TILE.x + pixInTile.x;
+			ivec2 texelPos = ivec2(tileIndex * PIXELS_IN_TILE + pixInTile); 
+			imageStore(outTex, texelPos, colorBuffer[pixInTileLin]);
+		}
+		barrier();
+		memoryBarrierShared();
 		if(gl_LocalInvocationID.x == 0)
 		{
 			currentTile = atomicCounterIncrement(currentTileCounter);
@@ -176,7 +199,7 @@ void main()
 		memoryBarrierShared();
 	}
 
-
+	memoryBarrierImage();
 }
 
 float EdgeFunction(in vec2 p1, in vec2 p2, in vec2 test_point)

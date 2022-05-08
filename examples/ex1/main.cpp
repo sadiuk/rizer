@@ -197,7 +197,7 @@ public:
 
 
 		Rasterizer::InputParams inputParams((void*)vertices, sizeof vertices, (void*)indices, sizeof indices, params);
-		fbo->AttachTexture(inputParams.coarseRasterizerOutTex.get());
+		fbo->AttachTexture(inputParams.fineRasterizerOutTex.get());
 		fbo->Bind();
 
 		additionalOnKeyPress = [&](int key, int scancode, int action, int mods)
@@ -211,6 +211,9 @@ public:
 					break;
 				case GLFW_KEY_R:
 					fbo->AttachTexture(inputParams.coarseRasterizerOutTex.get());
+					break;
+				case GLFW_KEY_T:
+					fbo->AttachTexture(inputParams.fineRasterizerOutTex.get());
 					break;
 				}
 			}

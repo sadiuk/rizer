@@ -59,12 +59,14 @@ public:
 			triangleSetupBuffer = SSBO::Create(nullptr, triCount * sizeof(glm::vec4) * 3);
 			binRasterizerOutTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(texSize, texSize);
 			coarseRasterizerOutTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(texSize, texSize);
+			fineRasterizerOutTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(texSize, texSize);
 			atomics = AtomicCounterBuffer::Create(nullptr, atomicBufferSize);
 			uniforms = UBO::Create((void*)&params, sizeof(params));
 			perBinTriangleIndices = SSBO::Create(nullptr, 0);
 			perTileTriangleIndices = SSBO::Create(nullptr, 0);
 			perBinTriangleCountPrefixSum = SSBO::Create(nullptr, binCount * sizeof(uint32_t));
 			perTileTriangleCount = SSBO::Create(nullptr, tileCount * sizeof(uint32_t));
+			currentTileCounter = AtomicCounterBuffer::Create(nullptr, sizeof(uint32_t));
 		}
 
 		std::shared_ptr<SSBO> vertexBuffer;
@@ -76,7 +78,9 @@ public:
 		std::shared_ptr<SSBO> perTileTriangleCount;
 		std::shared_ptr<Texture2D> binRasterizerOutTex;
 		std::shared_ptr<Texture2D> coarseRasterizerOutTex;
+		std::shared_ptr<Texture2D> fineRasterizerOutTex;
 		std::shared_ptr<AtomicCounterBuffer> atomics;
+		std::shared_ptr<AtomicCounterBuffer> currentTileCounter;
 		std::shared_ptr<UBO> uniforms;
 		RasterizationParams rasterParams;
 		constexpr static uint16_t binCount = 256;
