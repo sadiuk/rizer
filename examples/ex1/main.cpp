@@ -86,9 +86,9 @@ public:
 		if (m_pitch < -89) m_pitch = -89;
 
 		glm::vec3 fwd;
-		fwd.x = cos(glm::radians(m_yaw)) * cos(glm::radians(-m_pitch));
+		fwd.x = sin(glm::radians(m_yaw)) * cos(glm::radians(-m_pitch));
 		fwd.y = sin(glm::radians(-m_pitch));
-		fwd.z = sin(glm::radians(m_yaw)) * cos(glm::radians(-m_pitch));
+		fwd.z = -cos(glm::radians(m_yaw)) * cos(glm::radians(-m_pitch));
 		forward = glm::normalize(fwd);
 
 		m_prev_mouse_x = xpos;
