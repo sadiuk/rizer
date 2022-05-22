@@ -197,37 +197,37 @@ void main()
 						uint outputIndex = binIndex * triCount + binStartIndices[binIndex] + outpIndex - 1;
 						perBinTriangleIndices[outputIndex] = triangleIdx;
 						//test
-						{
-							barrier();
-							uvec2 binStart = uvec2(x, y) * uvec2(binSize);
-							uvec2 binEnd = binStart + uvec2(binSize);
-							for(uint i = binStart.x; i < binEnd.x; i++)
-							{
-							for(uint j = binStart.y; j < binEnd.y; j++)
-							{
-								if(atomicCounter(perBinTriangleCount[binIndex]) == 1)
-								{
-									if(perBinTriangleIndices[binIndex * triCount] == 0)
-									{
-										imageStore(testTex, ivec2(i, j), vec4(0, 1, 0, 1));
-									}
-									else if(perBinTriangleIndices[binIndex * triCount] == 1)
-									{
-										imageStore(testTex, ivec2(i, j), vec4(0, 0, 1, 1));
-									}
-								}
-								else if(atomicCounter(perBinTriangleCount[binIndex]) == 2)
-								{
-									if(perBinTriangleIndices[binIndex * triCount] != perBinTriangleIndices[binIndex * triCount + 1])
-									{
-										imageStore(testTex, ivec2(i, j), vec4(0, 1, 1, 1));
-									}
-									
-								}
-								
-							}
-							}
-						}
+//						{
+//							barrier();
+//							uvec2 binStart = uvec2(x, y) * uvec2(binSize);
+//							uvec2 binEnd = binStart + uvec2(binSize);
+//							for(uint i = binStart.x; i < binEnd.x; i++)
+//							{
+//							for(uint j = binStart.y; j < binEnd.y; j++)
+//							{
+//								if(atomicCounter(perBinTriangleCount[binIndex]) == 1)
+//								{
+//									if(perBinTriangleIndices[binIndex * triCount] == 0)
+//									{
+//										imageStore(testTex, ivec2(i, j), vec4(0, 1, 0, 1));
+//									}
+//									else if(perBinTriangleIndices[binIndex * triCount] == 1)
+//									{
+//										imageStore(testTex, ivec2(i, j), vec4(0, 0, 1, 1));
+//									}
+//								}
+//								else if(atomicCounter(perBinTriangleCount[binIndex]) == 2)
+//								{
+//									if(perBinTriangleIndices[binIndex * triCount] != perBinTriangleIndices[binIndex * triCount + 1])
+//									{
+//										imageStore(testTex, ivec2(i, j), vec4(0, 1, 1, 1));
+//									}
+//									
+//								}
+//								
+//							}
+//							}
+//						}
 					}
 				}
 			}

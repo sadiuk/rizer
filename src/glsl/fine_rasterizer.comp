@@ -194,7 +194,10 @@ void main()
 				// TODO: test if we're not gonna be 1 fragment short
 				uint fragIndex = atomicAdd(ringBufferRange[0], 1);
 				uint i = 0;
-								
+				if(fragIndex >= ringBufferRange[1])
+				{
+					atomicAdd(ringBufferRange[0], -1);
+				}				
 				while(int(ringBufferRange[1]) - int(fragIndex) > 0)
 				{
 					uvec2 fragment = ringBuffer[fragIndex % RING_BUFFER_SIZE];
@@ -202,23 +205,34 @@ void main()
 
 					if(OccupyPixel(fragment[1]))
 					{
-						// Shading itself	
-						if(fragment[0] == 0)
-						colorBuffer[fragment[1]] = vec4(0, 0, 1, 1);
-						else if(fragment[0] == 1)
-						colorBuffer[fragment[1]] = vec4(0, 1, 0, 1);
+						if(colorBuffer[fragment[1]] == vec4(0))
+						{
+							if(fragment[0] == 0)
+							colorBuffer[fragment[1]] = vec4(0, 1, 0, 1);
+							else if(fragment[0] == 1)
+							colorBuffer[fragment[1]] = vec4(0, 0, 1, 1);
 
+						}
+						else
+						{
+							
+							colorBuffer[fragment[1]] = vec4(0, 1, 1, 1);
+							
+						}	
 						DeoccupyPixel(fragment[1]);
 					}
 					else
 					{
-						uint end = atomicAdd(ringBufferRange.y, 1);
+						uint end = atomicAdd(ringBufferRange[1], 1);
 						ringBuffer[end % RING_BUFFER_SIZE] = fragment;
 					}
 					fragIndex = atomicAdd(ringBufferRange[0], 1);
+					if(fragIndex >= ringBufferRange[1])
+					{
+						atomicAdd(ringBufferRange[0], -1);
+					}
 					i++;
 				}
-				atomicAdd(ringBufferRange[0], -1);
 
 				shadingStage = false;
 			}
@@ -260,14 +274,14 @@ bool OccupyPixel(uint indexLinear)
 {
 	uint elIndex = indexLinear / 32;
 	uint innerIndex = indexLinear % 32;
-	bool res;
-	res = !bool(colorBufferOccupance[elIndex] & (1 << innerIndex));
-	colorBufferOccupance[elIndex] |= (1 << innerIndex);
-	return res;
+	uint res;
+	uint i = 1 << innerIndex;
+	res = atomicOr(colorBufferOccupance[elIndex], i);
+	return !bool(res & i);
 }
 void DeoccupyPixel(uint indexLinear)
 {
 	uint elIndex = indexLinear / 32;
 	uint innerIndex = indexLinear % 32;
-	colorBufferOccupance[elIndex] &= ~(1 << innerIndex);
+	atomicAnd(colorBufferOccupance[elIndex], ~(1 << innerIndex));
 }
