@@ -304,7 +304,7 @@ void main()
 
 				uint trisInTile = perTileTriangleCount[tileIndexInSSBO];
 
-				uint outputIndex = binOffset * TILE_COUNT_LINEAR + tileIndex * maxTrianglesInTile;
+				uint outputIndex = (binOffset * TILE_COUNT_LINEAR ) + tileIndex* maxTrianglesInTile;
 				if(perTileTriangleCount[tileIndexInSSBO] == 1)
 				{
 					if(perTileTriangleIndices[outputIndex] == 0)
