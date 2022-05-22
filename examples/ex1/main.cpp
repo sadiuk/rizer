@@ -218,6 +218,7 @@ public:
 				}
 			}
 		};
+		uint64_t start = std::chrono::steady_clock::now().time_since_epoch().count() / 1000000;
 		while (ShouldRun() && m_should_run)
 		{
 			//inputParams.outTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(2048, 2048);
@@ -247,6 +248,10 @@ public:
 			rasterizer.Rasterize(inputParams);
 			context->BlitFramebuffer(fbo.get());
 			EndScene();
+			uint64_t now = std::chrono::steady_clock::now().time_since_epoch().count() / 1000000;
+			auto diff = now - start;
+			start = now;
+			SetWindowCaption(std::string("Framerate: ") + std::to_string(diff) + " ms, " + std::to_string(1000. / diff) + " FPS");
 		}
 	}
 };

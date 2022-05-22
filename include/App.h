@@ -39,6 +39,7 @@ protected:
 	bool ShouldRun() const;
 	void BeginScene();
 	void EndScene();
+	void SetWindowCaption(const std::string_view& cap);
 protected:
 	CreationParams m_params;
 	GLFWwindow* m_window;

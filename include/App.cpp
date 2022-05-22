@@ -215,3 +215,8 @@ void App::EndScene()
 	glfwSwapBuffers(m_window);
 }
 
+void App::SetWindowCaption(const std::string_view& cap)
+{
+	glfwSetWindowTitle(m_window, cap.data());
+}
+

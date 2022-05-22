@@ -66,7 +66,7 @@ void Rasterizer::Rasterize(const InputParams& params)
 	m_context->BindSSBO(params.perTileTriangleCount.get(), 5);
 	m_context->BindSSBO(params.perBinTriangleCountPrefixSum.get(), 6);
 	m_context->BindSSBO(params.perTileTriangleIndices.get(), 7);
-	m_context->Dispatch(10, 1, 1); // TODO optimal dispatch count
+	m_context->Dispatch(20, 1, 1); // TODO optimal dispatch count
 	m_context->PipelineBarrier(GL_ALL_BARRIER_BITS);
 
 	//Fine Rasterizer
@@ -77,7 +77,7 @@ void Rasterizer::Rasterize(const InputParams& params)
 	m_context->BindSSBO(params.perTileTriangleCount.get(), 4);
 	m_context->BindSSBO(params.perBinTriangleCountPrefixSum.get(), 5);
 	m_context->BindSSBO(params.perTileTriangleIndices.get(), 6);
-	m_context->Dispatch(32, 1, 1); // TODO optimal dispatch count
+	m_context->Dispatch(128, 1, 1); // TODO optimal dispatch count
 	m_context->PipelineBarrier(GL_ALL_BARRIER_BITS);
 }
 
