@@ -189,9 +189,9 @@ public:
 			glm::vec3{-10, 1, -20  },
 			glm::vec3{-5, 10, -20   },
 			glm::vec3{ 0, 1, -20   },
-			glm::vec3{ -3, 1, -20 },
-			glm::vec3{ 2, 10, -20   },
-			glm::vec3{ 7, 1, -20  }
+			glm::vec3{ -3, 1, -30 },
+			glm::vec3{ 2, 10, -30   },
+			glm::vec3{ 7, 1, -30  }
 		};
 		glm::uvec3 indices[2] = { glm::uvec3{ 0, 1, 2 }, glm::uvec3{3, 4, 5 } };
 
@@ -251,7 +251,7 @@ public:
 			uint64_t now = std::chrono::steady_clock::now().time_since_epoch().count() / 1000000;
 			auto diff = now - start;
 			start = now;
-			SetWindowCaption(std::string("Framerate: ") + std::to_string(diff) + " ms, " + std::to_string(1000. / diff) + " FPS");
+			SetWindowCaption("Растеризатор: Демонстрація");
 		}
 	}
 };

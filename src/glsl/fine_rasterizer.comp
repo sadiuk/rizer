@@ -191,7 +191,6 @@ void main()
 			
 			if(shadingStage)
 			{
-				// TODO: test if we're not gonna be 1 fragment short
 				uint fragIndex = atomicAdd(ringBufferRange[0], 1);
 				uint i = 0;
 				if(fragIndex >= ringBufferRange[1])
@@ -215,9 +214,7 @@ void main()
 						}
 						else
 						{
-							
-							colorBuffer[fragment[1]] = vec4(0, 1, 1, 1);
-							
+							colorBuffer[fragment[1]] = vec4(0, 0.5, 0.5, 1);	
 						}	
 						DeoccupyPixel(fragment[1]);
 					}

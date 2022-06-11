@@ -48,7 +48,9 @@ void Rasterizer::Rasterize(const InputParams& params)
 	m_context->BindTexture2D(params.binRasterizerOutTex.get(), 4);
 	m_context->BindComputeProgram(m_binRasterizerProgram.get());
 	m_context->Dispatch(1, 1, 1); // TODO optimal dispatch count
-	m_context->PipelineBarrier(GL_ALL_BARRIER_BITS);
+	m_context->PipelineBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	m_context->PipelineBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+	m_context->PipelineBarrier(GL_ATOMIC_COUNTER_BARRIER_BIT);
 
 	//Coarse Rasterizer
 	uint32_t perBinTriangleCount[Rasterizer::InputParams::binCount] = {};
@@ -67,8 +69,9 @@ void Rasterizer::Rasterize(const InputParams& params)
 	m_context->BindSSBO(params.perBinTriangleCountPrefixSum.get(), 6);
 	m_context->BindSSBO(params.perTileTriangleIndices.get(), 7);
 	m_context->Dispatch(20, 1, 1); // TODO optimal dispatch count
-	m_context->PipelineBarrier(GL_ALL_BARRIER_BITS);
-
+	m_context->PipelineBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	m_context->PipelineBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+	m_context->PipelineBarrier(GL_ATOMIC_COUNTER_BARRIER_BIT);
 	//Fine Rasterizer
 	m_context->BindComputeProgram(m_fineRasterizerProgram.get());
 	m_context->BindSSBO(params.triangleSetupBuffer.get(), 0);
@@ -78,6 +81,8 @@ void Rasterizer::Rasterize(const InputParams& params)
 	m_context->BindSSBO(params.perBinTriangleCountPrefixSum.get(), 5);
 	m_context->BindSSBO(params.perTileTriangleIndices.get(), 6);
 	m_context->Dispatch(128, 1, 1); // TODO optimal dispatch count
-	m_context->PipelineBarrier(GL_ALL_BARRIER_BITS);
+	m_context->PipelineBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	m_context->PipelineBarrier(GL_BUFFER_UPDATE_BARRIER_BIT);
+	m_context->PipelineBarrier(GL_ATOMIC_COUNTER_BARRIER_BIT);
 }
 
