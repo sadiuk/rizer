@@ -4,6 +4,7 @@
 #include "../src/OpenGL/Framebuffer.h"
 #include "../../src/fs/OBJLoader.h"
 #include <glm/gtc/matrix_transform.hpp>
+#include "../../src/Debug.h"
 
 #include <wtypes.h>
 #include <iostream>
@@ -223,35 +224,34 @@ public:
 		{
 			//inputParams.outTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(2048, 2048);
 			BeginScene();
-			ImGui::Begin("Rasterization Params");
-			ImGui::SetWindowSize(ImVec2((float)1024, (float)1024));
-
-			ImGui::End();
+			//ImGui::Begin("Rasterization Params");
+			//ImGui::SetWindowSize(ImVec2((float)1024, (float)1024));
+			//
+			//ImGui::End();
 			//dynamicParams.view = glm::rotate(dynamicParams.view, glm::radians(15.f), glm::vec3(0, -1, 0));
 			//dynamicParams.view = glm::translate(dynamicParams.view, glm::vec3(0, 0, 0.01));
 			inputParams.rasterParams.view = glm::lookAt(center, center + forward, up);
 			//vertex_buffer->Update(vertices, sizeof vertices);
 			//vertex_buffer->Update(vertices, sizeof vertices);
-			ExtractViewFrustumPlanesFromMVP(inputParams.rasterParams.proj * inputParams.rasterParams.view * inputParams.rasterParams.model, inputParams.rasterParams.planes);
+			//ExtractViewFrustumPlanesFromMVP(inputParams.rasterParams.proj * inputParams.rasterParams.view * inputParams.rasterParams.model, inputParams.rasterParams.planes);
+			TEST_TIMER_START("Uniform Update")
 			inputParams.uniforms->Update((void*)&inputParams.rasterParams, sizeof(inputParams.rasterParams));
-			// TODO: delete when debug finished
-			/*for (int i = 0; i < sizeof(vertices) / sizeof(glm::vec4); i += 3)
-			{
-				auto v1 = vertices[i];
-				auto v2 = vertices[i + 1];
-				auto v3 = vertices[i + 2];
-				auto view = inputParams.rasterParams.view * glm::vec4(v3, 1);
-				AABB aabb;
-				getTriangleAABB(inputParams.rasterParams.model * glm::vec4(v1, 1), inputParams.rasterParams.model * glm::vec4(v2, 1), inputParams.rasterParams.model * glm::vec4(v3, 1), aabb);
-				auto res = testFrustumAgainstAABB(inputParams.rasterParams.planes, aabb);
-			}*/
+			TEST_TIMER_END()
+
+			TEST_TIMER_START("Entire Rasterization")
 			rasterizer.Rasterize(inputParams);
+			TEST_TIMER_END()
+
+			TEST_TIMER_START("End scene")
 			context->BlitFramebuffer(fbo.get());
 			EndScene();
+
+			TEST_TIMER_END()
+
 			uint64_t now = std::chrono::steady_clock::now().time_since_epoch().count() / 1000000;
 			auto diff = now - start;
 			start = now;
-			SetWindowCaption("Растеризатор: Демонстрація");
+			SetWindowCaption(std::string("Framerate: ") + std::to_string(diff) + " ms, " + std::to_string(1000. / diff) + " FPS");
 		}
 	}
 };

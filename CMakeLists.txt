@@ -30,7 +30,8 @@ add_library(rizer include/App.cpp
 				  src/GLContext.h
 				  src/GLContext.cpp
 				  src/Rasterizer.h
-				  src/Rasterizer.cpp)
+				  src/Rasterizer.cpp
+				  src/Debug.h)
 
 target_include_directories(rizer PUBLIC third_party/glm third_party/glad/include third_party/glfw/include third_party/imgui)
 

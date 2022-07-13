@@ -213,31 +213,31 @@ void main()
 		memoryBarrierShared();
 
 		//test
-		if(gl_GlobalInvocationID.xy == uvec2(0, 0))
-		for(uint y = 0; y < BIN_COUNT.y; ++y)
-		for(uint x = 0; x < BIN_COUNT.x; ++x)
-		{
-			uint binIndex = y * BIN_COUNT.x + x;
-			vec2 binSize = IMAGE_SIZE / BIN_COUNT;
-			uvec2 binStart = uvec2(x, y) * uvec2(binSize);
-			uvec2 binEnd = binStart + uvec2(binSize);
-			for(uint i = binStart.x; i < binEnd.x; i++)
-			{
-				for(uint j = binStart.y; j < binEnd.y; j++)
-				{
-					if(atomicCounter(perBinTriangleCount[binIndex]) == 1)
-					{
-					if(perBinTriangleIndices[binIndex * 2] == 0)
-					imageStore(testTex, ivec2(i, j), vec4(0, 1, 0, 1));
-					else
-					imageStore(testTex, ivec2(i, j), vec4(0, 0, 1, 1));
-
-					}
-					else if(atomicCounter(perBinTriangleCount[binIndex]) == 2)
-						imageStore(testTex, ivec2(i, j), vec4(0, 0.5, 0.5, 1));
-				}
-			}
-		}
+//		if(gl_GlobalInvocationID.xy == uvec2(0, 0))
+//		for(uint y = 0; y < BIN_COUNT.y; ++y)
+//		for(uint x = 0; x < BIN_COUNT.x; ++x)
+//		{
+//			uint binIndex = y * BIN_COUNT.x + x;
+//			vec2 binSize = IMAGE_SIZE / BIN_COUNT;
+//			uvec2 binStart = uvec2(x, y) * uvec2(binSize);
+//			uvec2 binEnd = binStart + uvec2(binSize);
+//			for(uint i = binStart.x; i < binEnd.x; i++)
+//			{
+//				for(uint j = binStart.y; j < binEnd.y; j++)
+//				{
+//					if(atomicCounter(perBinTriangleCount[binIndex]) == 1)
+//					{
+//					if(perBinTriangleIndices[binIndex * 2] == 0)
+//					imageStore(testTex, ivec2(i, j), vec4(0, 1, 0, 1));
+//					else
+//					imageStore(testTex, ivec2(i, j), vec4(0, 0, 1, 1));
+//
+//					}
+//					else if(atomicCounter(perBinTriangleCount[binIndex]) == 2)
+//						imageStore(testTex, ivec2(i, j), vec4(0, 0.5, 0.5, 1));
+//				}
+//			}
+//		}
 	}
 }
 

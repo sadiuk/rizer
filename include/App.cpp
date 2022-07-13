@@ -1,4 +1,5 @@
 #include "App.h"
+#include "../../src/Debug.h"
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -157,7 +158,7 @@ bool App::OpenGLInit()
 			break;
 
 		case GL_DEBUG_SEVERITY_NOTIFICATION:
-			_severity = "NOTIFICATION";
+			_severity = "NOTIFICATION"; return;
 			break;
 
 		default:
@@ -201,17 +202,20 @@ bool App::ShouldRun() const
 
 void App::BeginScene()
 {
+
+	TEST_TIMER_START("Begin scene")
 	glfwPollEvents();
 	glClear(GL_COLOR_BUFFER_BIT);
-	ImGui_ImplOpenGL3_NewFrame();
-	ImGui_ImplGlfw_NewFrame();
-	ImGui::NewFrame();
+	//ImGui_ImplOpenGL3_NewFrame();
+	//ImGui_ImplGlfw_NewFrame();
+	//ImGui::NewFrame();
+	TEST_TIMER_END()
 }
 
 void App::EndScene()
 {
-	ImGui::Render();
-	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+	//ImGui::Render();
+	//ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 	glfwSwapBuffers(m_window);
 }
 
