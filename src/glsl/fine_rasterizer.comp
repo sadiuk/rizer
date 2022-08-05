@@ -72,8 +72,17 @@ shared uint colorBufferOccupance[COLOR_BUFFER_OCCUPANCE_SIZE];
 shared vec4 colorBuffer[PIXELS_IN_TILE_LINEAR];
 shared float depthBuffer[PIXELS_IN_TILE_LINEAR];
 
+
+struct PointTriangleOrientation
+{
+	vec3 edge_function_results;
+	vec3 barycentrics;
+	float current_z;
+};
+
 float EdgeFunction(in vec2 p1, in vec2 p2, in vec2 test_point);	
 bool PointInTriangle(vec2 point, vec2 v1, vec2 v2, vec2 v3);
+void TestPointInTriangle(in vec3 p1, in vec3 p2, in vec3 p3, vec2 test_point, out PointTriangleOrientation results);
 
 bool OccupyPixel(uint indexLinear);
 void DeoccupyPixel(uint indexLinear);
@@ -119,6 +128,7 @@ void main()
 		if(gl_LocalInvocationID.x < PIXELS_IN_TILE_LINEAR)
 		{
 			colorBuffer[gl_LocalInvocationID.x] = clearColor;
+			depthBuffer[gl_LocalInvocationID.x] = 1000.f; //TODO: far plane z
 		}
 		if(gl_LocalInvocationID.x < COLOR_BUFFER_OCCUPANCE_SIZE)
 		{
@@ -201,21 +211,24 @@ void main()
 				{
 					uvec2 fragment = ringBuffer[fragIndex % RING_BUFFER_SIZE];
 					uvec2 pixIndex = tileIndex * PIXELS_IN_TILE + uvec2(fragment[1] % PIXELS_IN_TILE.x, fragment[1] / PIXELS_IN_TILE.x);
-
+					vec2 pixPos = tileIndex * tileSizeRelative + pixelSizeRelative * vec2(fragment[1] % PIXELS_IN_TILE.x, fragment[1] / PIXELS_IN_TILE.x);
+					pixPos = pixPos * 2 - 1;
 					if(OccupyPixel(fragment[1]))
 					{
-						if(colorBuffer[fragment[1]] == vec4(0))
+						uint triIdx = fragment[0];
+						SetupTriangleData tri = triangles[triIdx];
+						PointTriangleOrientation orientation;
+						TestPointInTriangle(tri.screenPos[0].rgb, tri.screenPos[1].rgb, tri.screenPos[2].rgb, pixPos, orientation);
+						if(depthBuffer[fragment[1]] > orientation.current_z)
 						{
-							if(fragment[0] == 0)
-							colorBuffer[fragment[1]] = vec4(0, 1, 0, 1);
-							else if(fragment[0] == 1)
-							colorBuffer[fragment[1]] = vec4(0, 0, 1, 1);
+							//if(fragment[0] == 0)
+							//colorBuffer[fragment[1]] = vec4(0, 1, 0, 1);
+							//else if(fragment[0] == 1)
+							//colorBuffer[fragment[1]] = vec4(0, 0, 1, 1);
 
+							colorBuffer[fragment[1]] = vec4(0, 0, 1, 1);
+							depthBuffer[fragment[1]] = orientation.current_z; 
 						}
-						else
-						{
-							colorBuffer[fragment[1]] = vec4(0, 0.5, 0.5, 1);	
-						}	
 						DeoccupyPixel(fragment[1]);
 					}
 					else
@@ -281,4 +294,16 @@ void DeoccupyPixel(uint indexLinear)
 	uint elIndex = indexLinear / 32;
 	uint innerIndex = indexLinear % 32;
 	atomicAnd(colorBufferOccupance[elIndex], ~(1 << innerIndex));
+}
+
+void TestPointInTriangle(in vec3 p1, in vec3 p2, in vec3 p3, vec2 test_point, out PointTriangleOrientation results)
+{
+	results.edge_function_results = vec3(EdgeFunction(p2.xy, p3.xy, test_point),
+										 EdgeFunction(p3.xy, p1.xy, test_point),
+										 EdgeFunction(p1.xy, p2.xy, test_point));
+	vec3 triangle_area = vec3(EdgeFunction(p1.xy, p2.xy, p3.xy));
+	results.barycentrics = (results.edge_function_results / triangle_area);
+	vec3 b = results.barycentrics;
+	results.current_z = 1 / p1.z * b[0] + 1 / p2.z * b[1] + 1 / p3.z * b[2]; 
+
 }

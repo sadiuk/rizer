@@ -50,6 +50,11 @@ void GLContext::GetBufferSubData(Buffer* buff, size_t offset, size_t size, void*
 	glGetNamedBufferSubData(buff->GetId(), offset, size, data);
 }
 
+void GLContext::Flush()
+{
+	glFinish();
+}
+
 void GLContext::ClearBuffer(Buffer* buff, int internalFormat, int format, int type, void* data)
 {
 	glClearNamedBufferData(buff->GetId(), internalFormat, format, type, data);

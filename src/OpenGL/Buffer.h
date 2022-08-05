@@ -24,4 +24,6 @@ public:
 using SSBO = Buffer;
 using UBO = Buffer;
 using AtomicCounterBuffer = Buffer;
+using VertexBuffer = Buffer;
+using IndexBuffer = Buffer;
 

@@ -10,6 +10,7 @@ void Framebuffer::AttachTexture(Texture2D* attachment)
 {
 	m_size = attachment->GetSize();
 	glNamedFramebufferTexture(m_id, GL_COLOR_ATTACHMENT0, attachment->GetId(), 0);
+	glNamedFramebufferTexture(m_id, GL_COLOR_ATTACHMENT1, attachment->GetId(), 0);
 	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 }
 

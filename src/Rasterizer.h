@@ -57,8 +57,8 @@ public:
 			indexBuffer = SSBO::Create(indexData, indexBufferSize);
 			auto triCount = indexBuffer->GetSize() / 3 / sizeof(uint32_t);
 			triangleSetupBuffer = SSBO::Create(nullptr, triCount * sizeof(glm::vec4) * 3);
-			binRasterizerOutTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(texSize, texSize);
-			coarseRasterizerOutTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(texSize, texSize);
+			binRasterizerOutTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(binCountPerAxis, binCountPerAxis);
+			coarseRasterizerOutTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(tilesPerBinPerAxis, tilesPerBinPerAxis);
 			fineRasterizerOutTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(texSize, texSize);
 			atomics = AtomicCounterBuffer::Create(nullptr, atomicBufferSize);
 			uniforms = UBO::Create((void*)&params, sizeof(params));
@@ -83,7 +83,9 @@ public:
 		std::shared_ptr<AtomicCounterBuffer> currentTileCounter;
 		std::shared_ptr<UBO> uniforms;
 		RasterizationParams rasterParams;
+		constexpr static uint16_t binCountPerAxis = 16;
 		constexpr static uint16_t binCount = 256;
+		constexpr static uint16_t tilesPerBinPerAxis = 8;
 		constexpr static uint16_t tilesPerBin = 64;
 		constexpr static uint16_t tileCount = binCount * tilesPerBin;
 		constexpr static uint16_t atomicBufferSize = 24 + 4 * binCount;

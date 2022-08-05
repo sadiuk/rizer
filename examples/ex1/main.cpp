@@ -5,10 +5,12 @@
 #include "../../src/fs/OBJLoader.h"
 #include <glm/gtc/matrix_transform.hpp>
 #include "../../src/Debug.h"
+#include "../src/FullScreenRenderer.h"
 
 #include <wtypes.h>
 #include <iostream>
 #include <functional>
+
 
 class RasterizerApp : App
 {
@@ -16,7 +18,7 @@ class RasterizerApp : App
 
 	double m_prev_mouse_x, m_prev_mouse_y;
 	float m_mouse_sensitivity = 0.1f;
-	float m_movement_speed = 0.1f;
+	float m_movement_speed = 0.01f;
 
 	float m_yaw = 0, m_pitch = 0;
 	bool m_reset_mouse_pos = true;
@@ -171,36 +173,99 @@ public:
 
 	void Run()
 	{
-		constexpr uint32_t tex_size_x = 2048, tex_size_y = 2048;
+		FullScreenRenderer fullScreenRenderer;
 		auto context = GLContext::Get();
 
 		RasterizationParams params;
 		Rasterizer rasterizer;
 
-		//RasterizationDynamicParams dynamicParams;
-		//dynamicParams.texture_width = m_params.width;
-		//dynamicParams.texture_height = m_params.height;
-		params.proj = glm::perspective(60.f, m_params.width / float(m_params.height), 0.01f, 100.f);
-		params.view = glm::mat4(1); //glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+		params.proj = glm::perspective(60.f, m_params.width / float(m_params.height), 0.99f, 100.f);
+		//params.proj = glm::ortho(0.0f, 1024.f, 0.0f, 1024.f, -0.1f, -100.f);
+		params.view = glm::mat4(1); 
 		params.model = glm::mat4(1);
 
 		auto fbo = Framebuffer::Create();
 
 		glm::vec3 vertices[] = {
-			glm::vec3{-10, 1, -20  },
-			glm::vec3{-5, 10, -20   },
-			glm::vec3{ 0, 1, -20   },
-			glm::vec3{ -3, 1, -30 },
-			glm::vec3{ 2, 10, -30   },
-			glm::vec3{ 7, 1, -30  }
+			glm::vec3{-1, 0.5, -2  },
+			glm::vec3{-1, 1, -2   },
+			glm::vec3{ -0.5, 1, -2   },
+			glm::vec3{ -1, 0, -2 },
+			glm::vec3{ -1, 0.5, -2   },
+			glm::vec3{ -0.5, 0.5, -2  },
+			glm::vec3{ -1, -0.5, -2 },
+			glm::vec3{ -1, 0, -2   },
+			glm::vec3{ -0.5, 0, -2  },
+			glm::vec3{ -1, -1, -2 },
+			glm::vec3{ -1, -0.5, -2   },
+			glm::vec3{ -0.5, -0.5, -2  },
+
+			glm::vec3{-0.5, 0.5, -2  },
+			glm::vec3{-0.5, 1, -2   },
+			glm::vec3{ 0, 1, -2   },
+			glm::vec3{ -0.5, 0, -2 },
+			glm::vec3{ -0.5, 0.5, -2   },
+			glm::vec3{ 0, 0.5, -2  },
+			glm::vec3{ -0.5, -0.5, -2 },
+			glm::vec3{ -0.5, 0, -2   },
+			glm::vec3{ 0, 0, -2  },
+			glm::vec3{ -0.5, -1, -2 },
+			glm::vec3{ -0.5, -0.5, -2   },
+			glm::vec3{ 0, -0.5, -2  },
+
+			glm::vec3{0, 0.5, -2  },
+			glm::vec3{0, 1, -2   },
+			glm::vec3{0.5, 1, -2   },
+			glm::vec3{ 0, 0, -2 },
+			glm::vec3{ 0, 0.5, -2   },
+			glm::vec3{ 0.5, 0.5, -2  },
+			glm::vec3{ 0,-0.5, -2 },
+			glm::vec3{ 0, 0, -2   },
+			glm::vec3{ 0.5, 0, -2  },
+			glm::vec3{ 0, -1, -2 },
+			glm::vec3{ 0, -0.5, -2   },
+			glm::vec3{ 0.5, -0.5, -2  },
+						
+			//glm::vec3{1, 0.5, -2  },
+			//glm::vec3{1, 1, -2   },
+			//glm::vec3{ 0.5, 1, -2   },
+			//glm::vec3{ 1, 0, -2 },
+			//glm::vec3{ 1, 0.5, -2   },
+			//glm::vec3{ 0.5, 0.5, -2  },
+			//glm::vec3{ 1, -0.5, -2 },
+			//glm::vec3{ 1, 0, -2   },
+			//glm::vec3{ 0.5, 0, -2  },
+			//glm::vec3{ 1, -1, -2 },
+			//glm::vec3{ 1, -0.5, -2   },
+			//glm::vec3{ 0.5, -0.5, -2  },
 		};
-		glm::uvec3 indices[2] = { glm::uvec3{ 0, 1, 2 }, glm::uvec3{3, 4, 5 } };
+		glm::uvec3 indices[] = { 
+			glm::uvec3{ 0, 1, 2 },
+			glm::uvec3{3, 4, 5 },
+			glm::uvec3{6, 7, 8},
+			glm::uvec3{9, 10, 11},
+			glm::uvec3{12, 13, 14 },
+			glm::uvec3{15, 16, 17 },
+			glm::uvec3{18, 19, 20},
+			glm::uvec3{21, 22, 23},
+			glm::uvec3{ 0, 1, 2 } + glm::uvec3(24),
+			glm::uvec3{3, 4, 5 } + glm::uvec3(24),
+			glm::uvec3{6, 7, 8} + glm::uvec3(24),
+			glm::uvec3{9, 10, 11} + glm::uvec3(24),
+			//glm::uvec3{12, 13, 14 } + glm::uvec3(24),
+			//glm::uvec3{15, 16, 17 } + glm::uvec3(24),
+			//glm::uvec3{18, 19, 20} + glm::uvec3(24),
+			//glm::uvec3{21, 22, 23} + glm::uvec3(24),
+		};
+		fs::OBJLoader objLoader;
+		auto modelData = objLoader.LoadModel("D:/dev/rizer/media/cube.obj");
 
-
-		Rasterizer::InputParams inputParams((void*)vertices, sizeof vertices, (void*)indices, sizeof indices, params);
+		//Rasterizer::InputParams inputParams((void*)modelData.objects[0].positions.data(), sizeof(float) * modelData.objects[0].positions.size(), (void*)modelData.objects[0].vtxIndices.data(), sizeof(uint32_t) * modelData.objects[0].vtxIndices.size(), params);
+		Rasterizer::InputParams inputParams((void*)vertices, sizeof(vertices), indices, sizeof(indices), params);
 		fbo->AttachTexture(inputParams.fineRasterizerOutTex.get());
 		fbo->Bind();
 
+		Texture2D* drawTex = inputParams.fineRasterizerOutTex.get();
 		additionalOnKeyPress = [&](int key, int scancode, int action, int mods)
 		{
 			if (action == GLFW_PRESS)
@@ -208,13 +273,13 @@ public:
 				switch (key)
 				{
 				case GLFW_KEY_E:
-					fbo->AttachTexture(inputParams.binRasterizerOutTex.get());
+					drawTex = inputParams.binRasterizerOutTex.get();
 					break;
 				case GLFW_KEY_R:
-					fbo->AttachTexture(inputParams.coarseRasterizerOutTex.get());
+					drawTex = inputParams.coarseRasterizerOutTex.get();
 					break;
 				case GLFW_KEY_T:
-					fbo->AttachTexture(inputParams.fineRasterizerOutTex.get());
+					drawTex = inputParams.fineRasterizerOutTex.get();
 					break;
 				}
 			}
@@ -222,18 +287,12 @@ public:
 		uint64_t start = std::chrono::steady_clock::now().time_since_epoch().count() / 1000000;
 		while (ShouldRun() && m_should_run)
 		{
-			//inputParams.outTex = Texture2D::CreateEmptyR8G8B8A8_UNORM(2048, 2048);
 			BeginScene();
-			//ImGui::Begin("Rasterization Params");
-			//ImGui::SetWindowSize(ImVec2((float)1024, (float)1024));
-			//
-			//ImGui::End();
-			//dynamicParams.view = glm::rotate(dynamicParams.view, glm::radians(15.f), glm::vec3(0, -1, 0));
-			//dynamicParams.view = glm::translate(dynamicParams.view, glm::vec3(0, 0, 0.01));
+			
+
 			inputParams.rasterParams.view = glm::lookAt(center, center + forward, up);
-			//vertex_buffer->Update(vertices, sizeof vertices);
-			//vertex_buffer->Update(vertices, sizeof vertices);
-			//ExtractViewFrustumPlanesFromMVP(inputParams.rasterParams.proj * inputParams.rasterParams.view * inputParams.rasterParams.model, inputParams.rasterParams.planes);
+			inputParams.rasterParams.model = glm::scale(glm::mat4(1), glm::vec3(0.05, 0.05, 0.05));
+			
 			TEST_TIMER_START("Uniform Update")
 			inputParams.uniforms->Update((void*)&inputParams.rasterParams, sizeof(inputParams.rasterParams));
 			TEST_TIMER_END()
@@ -242,12 +301,15 @@ public:
 			rasterizer.Rasterize(inputParams);
 			TEST_TIMER_END()
 
-			TEST_TIMER_START("End scene")
-			context->BlitFramebuffer(fbo.get());
-			EndScene();
 
+			TEST_TIMER_START("Screen rendering")
+			fullScreenRenderer.RenderTextureFullScreen(drawTex);
 			TEST_TIMER_END()
 
+			TEST_TIMER_START("Swap buffers")
+			EndScene();
+			TEST_TIMER_END()
+			std::cout << "\n\n";
 			uint64_t now = std::chrono::steady_clock::now().time_since_epoch().count() / 1000000;
 			auto diff = now - start;
 			start = now;

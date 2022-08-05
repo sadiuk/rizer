@@ -5,7 +5,6 @@
 ComputeProgram::ComputeShader::ComputeShader(const GLchar* source)
 {
 	auto err = glGetError();
-	GL_NO_ERROR;
 	m_id = glCreateShader(GL_COMPUTE_SHADER);
 	glShaderSource(m_id, 1, &source, nullptr);
 	glCompileShader(m_id);

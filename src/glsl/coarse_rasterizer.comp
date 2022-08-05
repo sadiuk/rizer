@@ -273,68 +273,42 @@ void main()
 		barrier();
 		memoryBarrierShared();
 	}
-	//for(uint binY = 0; binY < BIN_COUNT.y; ++binY)
-	//for(uint binX = 0; binX < BIN_COUNT.x; ++binX)
-	//{
-	//uint binIndex = binY * BIN_COUNT.x + binX;
-	//vec2 binStart = (vec2(binX, binY) / vec2(BIN_COUNT) - 0.5) * 2;
-	//vec2 binEnd = binStart + binSizeRelative;	
-	//for(uint y = 0; y < TILE_COUNT.y; ++y)
-	//for(uint x = 0; x < TILE_COUNT.x; ++x)
-	//{
-	//	uint triCount = atomicCounter(triangleCount) + atomicCounter(snappedTriangleCount);
-	//
-	//	uint tileIndex = y * TILE_COUNT.x + x;
-	//
-	//
-	//	uvec2 p = uvec2(binX, binY) * TILE_COUNT + uvec2(x, y);
-	//	uint lin = p.y * TILES_IN_IMAGE.x + p.x;
-	//
-	//
-	//	uint tileIndexInSSBO = lin;
-	//	float outp = float(lin) / float(16384);
-	//	uvec2 tileStart = uvec2(((binStart + vec2(x, y) * tileSizeRelative) * 0.5 + 0.5) * IMAGE_SIZE);
-	//	uvec2 tileEnd = uvec2(((binStart + vec2(x + 1, y + 1) * tileSizeRelative) * 0.5 + 0.5) * IMAGE_SIZE);
-	//	for(uint i = tileStart.x; i <= tileEnd.x; i++)
-	//	{
-	//		for(uint j = tileStart.y; j <= tileEnd.y; j++)
-	//		{
-	//			uint binOffset = binIndex == 0 ? 0 : perBinTriangleCountPrefixSum[binIndex - 1];
-	//			uint maxTrianglesInTile = (perBinTriangleCountPrefixSum[binIndex] - binOffset);
-	//
-	//			uint trisInTile = perTileTriangleCount[tileIndexInSSBO];
-	//
-	//			uint outputIndex = (binOffset * TILE_COUNT_LINEAR ) + tileIndex* maxTrianglesInTile;
-	//			if(perTileTriangleCount[tileIndexInSSBO] == 1)
-	//			{
-	//				if(perTileTriangleIndices[outputIndex] == 0)
-	//				{
-	//					imageStore(testTex, ivec2(i, j), vec4(0, 1, 0, 1));
-	//				}
-	//				else if(perTileTriangleIndices[outputIndex] == 1)
-	//				{
-	//					imageStore(testTex, ivec2(i, j), vec4(0, 0, 1, 1));
-	//				}
-	//			}
-	//			else if(perTileTriangleCount[tileIndexInSSBO] == 2)
-	//			{
-	//				{
-	//					imageStore(testTex, ivec2(i, j), vec4(0, 0.5, 0.5, 1));
-	//				}
-	//				
-	//			}
-	//			else if(perTileTriangleCount[tileIndexInSSBO] > 2)
-	//			{
-	//				if(perTileTriangleIndices[outputIndex] != perTileTriangleIndices[outputIndex + 1])
-	//				{
-	//					imageStore(testTex, ivec2(i, j), vec4(trisInTile, 0, 0, 1));
-	//				}
-	//				
-	//			}
-	//		}
-	//	}
-	//}
-	//}
+	for(uint binY = 0; binY < BIN_COUNT.y; ++binY)
+	for(uint binX = 0; binX < BIN_COUNT.x; ++binX)
+	{
+	uint binIndex = binY * BIN_COUNT.x + binX;
+	vec2 binStart = (vec2(binX, binY) / vec2(BIN_COUNT) - 0.5) * 2;
+	vec2 binEnd = binStart + binSizeRelative;	
+	for(uint y = 0; y < TILE_COUNT.y; ++y)
+	for(uint x = 0; x < TILE_COUNT.x; ++x)
+	{
+		uint triCount = atomicCounter(triangleCount) + atomicCounter(snappedTriangleCount);
+	
+		uint tileIndex = y * TILE_COUNT.x + x;
+	
+	
+		uvec2 p = uvec2(binX, binY) * TILE_COUNT + uvec2(x, y);
+		uint lin = p.y * TILES_IN_IMAGE.x + p.x;
+	
+	
+		uint tileIndexInSSBO = lin;
+		uint binOffset = binIndex == 0 ? 0 : perBinTriangleCountPrefixSum[binIndex - 1];
+		uint maxTrianglesInTile = (perBinTriangleCountPrefixSum[binIndex] - binOffset);
+	
+		uint trisInTile = perTileTriangleCount[tileIndexInSSBO];
+	
+
+		if(trisInTile == 1)
+				imageStore(testTex, ivec2(x, y), vec4(0, 1, 0, 1));
+		else if(trisInTile == 2)
+				imageStore(testTex, ivec2(x, y), vec4(0, 0.5, 0.5, 1));
+		else if(trisInTile == 3)
+				imageStore(testTex, ivec2(x, y), vec4(0, 0, 1, 1));
+		else if(trisInTile > 0)
+				imageStore(testTex, ivec2(x, y), vec4(1, 0, 0, 1));
+		
+	}
+	}
 }
 
 //TODO: Duplicate

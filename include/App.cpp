@@ -158,7 +158,7 @@ bool App::OpenGLInit()
 			break;
 
 		case GL_DEBUG_SEVERITY_NOTIFICATION:
-			_severity = "NOTIFICATION"; return;
+			_severity = "NOTIFICATION"; 
 			break;
 
 		default:

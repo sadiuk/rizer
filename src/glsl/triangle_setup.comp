@@ -99,7 +99,7 @@ void main()
 
 		// TODO: triangles whise AABB diagonal has 0 on 1 axis
 		// For now both INTERSECTS and INSIDE are considered INSIDE
-		if(res == AABB_INTERSECTS_FRUSTUM || res == AABB_INSIDE_FRUSTUM)
+		//if(res == AABB_INTERSECTS_FRUSTUM || res == AABB_INSIDE_FRUSTUM)
 		{
 			uint outpIndex = atomicCounterIncrement(processedTriangleCounter);
 			SetupTriangleData outp;

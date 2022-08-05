@@ -31,4 +31,6 @@ public:
 	void ClearBuffer(SSBO* buff, int internalFormat, int format, int type, void* data);
 
 	void GetBufferSubData(Buffer* buff, size_t offset, size_t size, void* data);
+
+	void Flush();
 };

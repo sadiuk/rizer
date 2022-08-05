@@ -55,10 +55,27 @@ set(IMGUI_HEADERS
     "${IMGUI_DIR}/imstb_truetype.h")
 
 add_library(${IMGUI_LIB_NAME} ${IMGUI_SOURCES})
+
+### TINYOBJ ###
+set(TINYOBJ_LIB_NAME "tinyobjloader")
+set(TINYOBJ_SRC_PATH "${TINYOBJ_LIB_NAME}")
+set(TINYOBJ_INC_PATH "${TINYOBJ_LIB_NAME}")
+
+add_library( ${TINYOBJ_LIB_NAME}
+    STATIC
+        "${TINYOBJ_SRC_PATH}/tiny_obj_loader.cc"
+)
+
+target_include_directories(${GLAD_LIB_NAME}
+    PUBLIC
+        "${GLAD_INC_PATH}"
+)
+
 target_include_directories(${IMGUI_LIB_NAME}
     PUBLIC
     ${IMGUI_HEADERS}
     ${GLAD_INC_PATH}
+	${TINYOBJ_INC_PATH}
 )
 
-target_link_libraries(${IMGUI_LIB_NAME} ${GLFW_LIB_NAME})
+target_link_libraries(${IMGUI_LIB_NAME} ${GLFW_LIB_NAME} ${TINYOBJ_LIB_NAME})
