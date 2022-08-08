@@ -29,6 +29,7 @@ add_library(rizer include/App.cpp
 				  
 				  src/GLContext.h
 				  src/GLContext.cpp
+				  src/GLExtensions.h
 				  src/Rasterizer.h
 				  src/Rasterizer.cpp
 				  src/FullScreenRenderer.cpp

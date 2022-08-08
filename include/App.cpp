@@ -1,5 +1,7 @@
 #include "App.h"
 #include "../../src/Debug.h"
+#include "../../src/GLExtensions.h"
+#include "../../src/fs/FileManager.h"
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -27,6 +29,32 @@ bool App::Init()
 bool App::GladInit()
 {
 	bool loaded = gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+
+	int NumberOfExtensions;
+	glGetIntegerv(GL_NUM_EXTENSIONS, &NumberOfExtensions);
+	for (int i = 0; i < NumberOfExtensions; i++) {
+		const GLubyte* ccc = glGetStringi(GL_EXTENSIONS, i);
+		if (strcmp((const char*)ccc, (const char*)"GL_ARB_shading_language_include") == 0) {
+			// The extension is supported by our hardware and driver
+			// Try to get the "glDebugMessageCallbackARB" function :
+			
+			glExt::NamedStringARB = (decltype(glExt::NamedStringARB))glfwGetProcAddress("glNamedStringARB");
+			glExt::DeleteNamedStringARB = (decltype(glExt::DeleteNamedStringARB))glfwGetProcAddress("glDeleteNamedStringARB");
+			glExt::CompileShaderIncludeARB = (decltype(glExt::CompileShaderIncludeARB))glfwGetProcAddress("glCompileShaderIncludeARB");
+			glExt::IsNamedStringARB = (decltype(glExt::IsNamedStringARB))glfwGetProcAddress("glIsNamedStringARB");
+			glExt::GetNamedStringARB = (decltype(glExt::GetNamedStringARB))glfwGetProcAddress("glGetNamedStringARB");
+			glExt::GetNamedStringivARB = (decltype(glExt::GetNamedStringivARB))glfwGetProcAddress("glGetNamedStringivARB");
+		}
+	}
+	if (glExt::NamedStringARB)
+	{
+		constexpr int SHADER_INCLUDE_ARB = 0x8DAE;
+		std::string name = "D:/dev/rizer/src/glsl/common.glsl";
+		std::string includeName = "/common.glsl";
+
+		std::string commonContents = fs::FileManager::GetFileContent(name);
+		glExt::NamedStringARB(SHADER_INCLUDE_ARB, includeName.length(), includeName.data(), commonContents.length(), commonContents.data());
+	}
 	return loaded;
 }
 

@@ -1,14 +1,20 @@
 #include "ComputeProgram.h"
 #include <iostream>
 #include "../fs/FileManager.h"
-
+#include "glad/glad.h"
+#include "../GLExtensions.h"
 ComputeProgram::ComputeShader::ComputeShader(const GLchar* source)
 {
 	auto err = glGetError();
 	m_id = glCreateShader(GL_COMPUTE_SHADER);
 	glShaderSource(m_id, 1, &source, nullptr);
-	glCompileShader(m_id);
-	
+
+	const char* includePath = "/common.glsl";
+	int length = strlen(includePath);
+	char buff[100]{};
+	int outLength;
+	glExt::GetNamedStringARB(length, includePath, 100, &outLength, buff);
+	glExt::CompileShaderIncludeARB(m_id, 1, &includePath, &length);
 	int success;
 	char info_log[512];
 	glGetShaderiv(m_id, GL_COMPILE_STATUS, &success);

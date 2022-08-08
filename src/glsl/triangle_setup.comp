@@ -1,5 +1,6 @@
 #version 460 core
-
+#extension GL_ARB_shading_language_include : require
+#include "/common.glsl"
 layout(local_size_x = 16, local_size_y = 16) in; // TODO: revisit 
 
 
@@ -11,11 +12,6 @@ struct ViewFrustumPlanes
 {
 	// left, right, top, bottom, near, far
 	vec4 planes[6];
-};
-
-struct SetupTriangleData
-{
-	vec4 screenPos[3];
 };
 
 struct AABB

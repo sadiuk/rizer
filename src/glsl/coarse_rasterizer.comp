@@ -1,31 +1,13 @@
 #version 460 core
+#extension GL_ARB_shading_language_include : require
+#include "/common.glsl"
 
 #define LOCAL_SIZE_X 512
 layout(local_size_x = LOCAL_SIZE_X) in;
 
-#define BIN_COUNT uvec2(16, 16)
-#define TILE_COUNT uvec2(8, 8)
-#define TILE_COUNT_LINEAR TILE_COUNT.x * TILE_COUNT.y
-#define IMAGE_SIZE uvec2(1024, 1024)
-#define PIXELS_PER_BIN IMAGE_SIZE / BIN_COUNT
-#define PIXELS_PER_TILE TILE_COUNT.x * TILE_COUNT.y / 32
-#define TILES_IN_IMAGE uvec2(BIN_COUNT * TILE_COUNT)
 
-
-#define COARSE_SHARED_MEMORY_INT_SIZE TILE_COUNT.x * TILE_COUNT.y * LOCAL_SIZE_X / 32
-#define SHARED_MEMORY_INVOCATION_STRIDE COARSE_SHARED_MEMORY_INT_SIZE / (TILE_COUNT.x * TILE_COUNT.y)
-
-// TODO implement includes for glsl headers, must be done ASAP
-struct SetupTriangleData
-{
-	vec4 screenPos[3];
-};
-
-struct AABB2D
-{
-	vec2 minPos, maxPos;
-};
-
+#define COARSE_SHARED_MEMORY_INT_SIZE TILES_IN_BIN.x * TILES_IN_BIN.y * LOCAL_SIZE_X / 32
+#define SHARED_MEMORY_INVOCATION_STRIDE COARSE_SHARED_MEMORY_INT_SIZE / (TILES_IN_BIN.x * TILES_IN_BIN.y)
 
 layout(std430, binding = 0) readonly buffer TriangleData
 {
@@ -46,7 +28,7 @@ layout(binding = 3, offset = 8) uniform atomic_uint snappedTriangleCount;
 layout(binding = 3, offset = 12) uniform atomic_uint startedTriangleCounter;
 layout(binding = 3, offset = 16) uniform atomic_uint processedTriangleCounter;
 layout(binding = 3, offset = 20) uniform atomic_uint currentBinIndex;
-layout(binding = 3, offset = 24) uniform atomic_uint perBinTriangleCount[BIN_COUNT.x * BIN_COUNT.y];
+layout(binding = 3, offset = 24) uniform atomic_uint perBinTriangleCount[BINS_IN_IMAGE.x * BINS_IN_IMAGE.y];
 
 layout(binding = 4, rgba8) uniform image2D testTex;
 
@@ -68,24 +50,17 @@ shared uint currentBin;
 shared uint currentBinTriangleCounter;
 shared uint coarseRasterizerIntermadiatedData[COARSE_SHARED_MEMORY_INT_SIZE];
 shared uint prefixSum[LOCAL_SIZE_X * 2];
-shared uint tileStartIndices[TILE_COUNT_LINEAR];
+shared uint tileStartIndices[TILES_IN_BIN_LINEAR];
 
-const uint binCountLinear = BIN_COUNT.x * BIN_COUNT.y;
+const uint binCountLinear = BINS_IN_IMAGE.x * BINS_IN_IMAGE.y;
 
 void SetTriangleCoverageBit(uvec2 tile, uint triangleId, bool overlaps);
 bool GetTriangleCoverageBit(uvec2 tile, uint triangleId);
-//TODO: Duplicate
-void GetTriangle2DAABB(in vec4 screenPos[3], out AABB2D aabb);
-bool PointInTriangle(vec2 point, vec2 v1, vec2 v2, vec2 v3);
-bool SegmentsIntersect(vec2 s1, vec2 s2, vec2 p1, vec2 p2);
 
-const vec2 binSize = IMAGE_SIZE / BIN_COUNT;
-const vec2 binSizeRelative = vec2(2.0, 2.0) / vec2(BIN_COUNT);
-const vec2 tileSizeRelative = binSizeRelative / TILE_COUNT;
-uint debugFloat(float v)
-{
-	return uint(abs(v) * 100 + 100 * int(v > 0));
-}
+const vec2 binSize = IMAGE_SIZE / BINS_IN_IMAGE;
+const vec2 binSizeRelative = vec2(2.0, 2.0) / vec2(BINS_IN_IMAGE);
+const vec2 tileSizeRelative = binSizeRelative / TILES_IN_BIN;
+
 void main()
 {
 	uint triCount = atomicCounter(triangleCount) + atomicCounter(snappedTriangleCount);
@@ -97,14 +72,14 @@ void main()
 	memoryBarrierShared();
 	while(currentBin < binCountLinear)
 	{
-		if(gl_LocalInvocationID.x < TILE_COUNT_LINEAR)
+		if(gl_LocalInvocationID.x < TILES_IN_BIN_LINEAR)
 		{
 			tileStartIndices[gl_LocalInvocationID.x] = 0;
 		}
-		uvec2 binIndex = uvec2(currentBin % BIN_COUNT.x, currentBin / BIN_COUNT.x);
+		uvec2 binIndex = uvec2(currentBin % BINS_IN_IMAGE.x, currentBin / BINS_IN_IMAGE.x);
 		uint trianglesInBin = atomicCounter(perBinTriangleCount[currentBin]);
 
-		vec2 binStart = (binIndex / vec2(BIN_COUNT) - 0.5) * 2;
+		vec2 binStart = (binIndex / vec2(BINS_IN_IMAGE) - 0.5) * 2;
 		vec2 binEnd = binStart + binSizeRelative;	
 		if(gl_LocalInvocationID.xy == uvec2(0, 0))
 		{
@@ -127,15 +102,15 @@ void main()
 				vec2 triStart = clamp(aabb.minPos, binStart, binEnd);
 				vec2 triEnd = clamp(aabb.maxPos, binStart, binEnd);
 
-				uvec2 triangleStartTile = clamp(uvec2((triStart - binStart) / tileSizeRelative), uvec2(0), TILE_COUNT - 1); 
-				uvec2 triangleEndTile = clamp(uvec2((triEnd - binStart) / tileSizeRelative), uvec2(0), TILE_COUNT - 1); 
+				uvec2 triangleStartTile = clamp(uvec2((triStart - binStart) / tileSizeRelative), uvec2(0), TILES_IN_BIN - 1); 
+				uvec2 triangleEndTile = clamp(uvec2((triEnd - binStart) / tileSizeRelative), uvec2(0), TILES_IN_BIN - 1); 
 
 				uvec2 tileCount = triangleEndTile - triangleStartTile + 1;
 
 				// Clear all tiles
-				for(int y = 0; y < TILE_COUNT.y; ++y)
+				for(int y = 0; y < TILES_IN_BIN.y; ++y)
 				{
-					for(int x = 0; x < TILE_COUNT.x; ++x)
+					for(int x = 0; x < TILES_IN_BIN.x; ++x)
 					{
 						SetTriangleCoverageBit(uvec2(x, y), indexOfTriangleIndex, false);
 					}
@@ -195,8 +170,8 @@ void main()
 				barrier();
 				memoryBarrierShared();
 				uint stages = uint(ceil(log2(min(LOCAL_SIZE_X, trianglesInBin - currentBinTriangleCounter)))); 
-				for(uint y = 0; y < TILE_COUNT.y; ++y)
-				for(uint x = 0; x < TILE_COUNT.x; ++x)
+				for(uint y = 0; y < TILES_IN_BIN.y; ++y)
+				for(uint x = 0; x < TILES_IN_BIN.x; ++x)
 				{
 					prefixSum[gl_LocalInvocationID.x] = int(GetTriangleCoverageBit(uvec2(x, y), gl_LocalInvocationID.x));
 					barrier();
@@ -224,7 +199,7 @@ void main()
 						memoryBarrierShared();
 					}
 					uint trianglesInBatch = min(LOCAL_SIZE_X, trianglesInBin - currentBinTriangleCounter);
-					uint tileIndex = y * TILE_COUNT.x + x;
+					uint tileIndex = y * TILES_IN_BIN.x + x;
 					uint readIndex = (stages & 1) * LOCAL_SIZE_X + gl_LocalInvocationID.x;
 					uint outpIndex = prefixSum[readIndex];
 					uint oldTileStartIndex = tileStartIndices[tileIndex];
@@ -240,7 +215,7 @@ void main()
 						uint binOffset = currentBin == 0 ? 0 : perBinTriangleCountPrefixSum[currentBin - 1];
 						uint maxTrianglesInTile = (perBinTriangleCountPrefixSum[currentBin] - binOffset);
 
-						uint outputIndex = binOffset * TILE_COUNT_LINEAR + tileIndex * maxTrianglesInTile + oldTileStartIndex + outpIndex - 1;
+						uint outputIndex = binOffset * TILES_IN_BIN_LINEAR + tileIndex * maxTrianglesInTile + oldTileStartIndex + outpIndex - 1;
 						perTileTriangleIndices[outputIndex] = triangleIdx;
 						//test
 					}
@@ -249,10 +224,10 @@ void main()
 			}
 			barrier();
 			memoryBarrierShared();
-			if(currentBinTriangleCounter + LOCAL_SIZE_X >= trianglesInBin && gl_LocalInvocationID.x < TILE_COUNT_LINEAR)
+			if(currentBinTriangleCounter + LOCAL_SIZE_X >= trianglesInBin && gl_LocalInvocationID.x < TILES_IN_BIN_LINEAR)
 			{
-				uvec2 localTileIdx2D = uvec2(int(gl_LocalInvocationID.x) % int(TILE_COUNT), int(gl_LocalInvocationID.x) / int(TILE_COUNT)); 
-				uvec2 index2D = binIndex * TILE_COUNT + localTileIdx2D;
+				uvec2 localTileIdx2D = uvec2(int(gl_LocalInvocationID.x) % int(TILES_IN_BIN), int(gl_LocalInvocationID.x) / int(TILES_IN_BIN)); 
+				uvec2 index2D = binIndex * TILES_IN_BIN + localTileIdx2D;
 				//uint lin = index2D.y * TILES_IN_IMAGE.x + index2D.x;
 
 				uint tileIndexInSSBO = index2D.y * TILES_IN_IMAGE.x + index2D.x;
@@ -273,21 +248,21 @@ void main()
 		barrier();
 		memoryBarrierShared();
 	}
-	for(uint binY = 0; binY < BIN_COUNT.y; ++binY)
-	for(uint binX = 0; binX < BIN_COUNT.x; ++binX)
+	for(uint binY = 0; binY < BINS_IN_IMAGE.y; ++binY)
+	for(uint binX = 0; binX < BINS_IN_IMAGE.x; ++binX)
 	{
-	uint binIndex = binY * BIN_COUNT.x + binX;
-	vec2 binStart = (vec2(binX, binY) / vec2(BIN_COUNT) - 0.5) * 2;
+	uint binIndex = binY * BINS_IN_IMAGE.x + binX;
+	vec2 binStart = (vec2(binX, binY) / vec2(BINS_IN_IMAGE) - 0.5) * 2;
 	vec2 binEnd = binStart + binSizeRelative;	
-	for(uint y = 0; y < TILE_COUNT.y; ++y)
-	for(uint x = 0; x < TILE_COUNT.x; ++x)
+	for(uint y = 0; y < TILES_IN_BIN.y; ++y)
+	for(uint x = 0; x < TILES_IN_BIN.x; ++x)
 	{
 		uint triCount = atomicCounter(triangleCount) + atomicCounter(snappedTriangleCount);
 	
-		uint tileIndex = y * TILE_COUNT.x + x;
+		uint tileIndex = y * TILES_IN_BIN.x + x;
 	
 	
-		uvec2 p = uvec2(binX, binY) * TILE_COUNT + uvec2(x, y);
+		uvec2 p = uvec2(binX, binY) * TILES_IN_BIN + uvec2(x, y);
 		uint lin = p.y * TILES_IN_IMAGE.x + p.x;
 	
 	
@@ -311,19 +286,10 @@ void main()
 	}
 }
 
-//TODO: Duplicate
-void GetTriangle2DAABB(in vec4 screenPos[3], out AABB2D aabb)
-{
-	vec4 minV = vec4(min(min(screenPos[0], screenPos[1]), screenPos[2]));
-	vec4 maxV = vec4(max(max(screenPos[0], screenPos[1]), screenPos[2]));
-	aabb.minPos = minV.xy;
-	aabb.maxPos = maxV.xy;
-}
-
 void SetTriangleCoverageBit(uvec2 tile, uint triangleId, bool overlaps)
 {
 	triangleId %= LOCAL_SIZE_X;
-	uint tileIdx = TILE_COUNT.x * tile.y + tile.x;
+	uint tileIdx = TILES_IN_BIN.x * tile.y + tile.x;
 	uint triStartIndex = triangleId * SHARED_MEMORY_INVOCATION_STRIDE;
 	uint tileOffset = tileIdx / 32;
 	uint bitOffset = tileIdx % 32;
@@ -333,51 +299,10 @@ void SetTriangleCoverageBit(uvec2 tile, uint triangleId, bool overlaps)
 bool GetTriangleCoverageBit(uvec2 tile, uint triangleId)
 {
 	triangleId %= LOCAL_SIZE_X;
-	uint tileIdx = TILE_COUNT.x * tile.y + tile.x;
+	uint tileIdx = TILES_IN_BIN.x * tile.y + tile.x;
 	uint triStartIndex = triangleId * SHARED_MEMORY_INVOCATION_STRIDE;
 	uint tileOffset = tileIdx / 32;
 	uint bitOffset = tileIdx % 32;
 
 	return bool(coarseRasterizerIntermadiatedData[triStartIndex + tileOffset] & (1 << bitOffset));
-}
-
-// TODO: Duplicate
-float EdgeFunction(in vec2 p1, in vec2 p2, in vec2 test_point)
-{
-	return (test_point.x - p1.x) * (p2.y - p1.y) - (test_point.y - p1.y) * (p2.x - p1.x);
-}
-
-vec2 Perpendicular(in vec2 vec)
-{
-	vec2 res; 
-	if(abs(vec.x) < 1e-5 || abs(vec.y) < 1e-5)
-		res = vec2(vec.y, vec.x);
-	else
-	{
-		res.y = 1;
-		res.x = -vec.y * res.y / vec.x;
-	}
-	return normalize(res);
-}
-
-bool PointInTriangle(vec2 point, vec2 v1, vec2 v2, vec2 v3)
-{
-	float d1 = EdgeFunction(v1, v2, point);
-	float d2 = EdgeFunction(v2, v3, point);
-	float d3 = EdgeFunction(v3, v1, point);
-
-	return d1 > 0 && d2 > 0 && d3 > 0;
-}
-
-bool SegmentsIntersect(vec2 A, vec2 B, vec2 C, vec2 D)
-{
-	vec2 O1 = A;
-	vec2 O2 = C;
-	vec2 D1  = B - A;
-	vec2 D2 = D - C;
-	vec2 D1Perp = Perpendicular(D1);
-	vec2 D2Perp = Perpendicular(D2);
-	float s = dot(O2 - O1, D2Perp) / dot(D1, D2Perp);
-	float t = dot(O1 - O2, D1Perp) / dot(D2, D1Perp);
-	return s >= 0 && s <= 1 && t >= 0 && t <= 1;
 }
