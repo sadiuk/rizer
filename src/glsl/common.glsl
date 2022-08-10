@@ -47,6 +47,32 @@ vec2 Perpendicular(in vec2 vec)
 	return normalize(res);
 }
 
+void MakeClockwise(inout vec2 v1, inout vec2 v2, inout vec2 v3)
+{
+	vec3 vect1 = vec3(v2 - v1, 0);
+	vec3 vect2 = vec3(v3 - v1, 0);
+	vec3 c = cross(vect1, vect2);
+	if(c.z > 0)
+	{
+		vec2  temp = v2;
+		v2 = v3;
+		v3 = temp;
+	}
+}
+
+void MakeClockwise(inout vec3 v1, inout vec3 v2, inout vec3 v3)
+{
+	vec3 vect1 = vec3(v2.xy - v1.xy, 0);
+	vec3 vect2 = vec3(v3.xy - v1.xy, 0);
+	vec3 c = cross(vect1, vect2);
+	if(c.z > 0.)
+	{
+		vec3  temp = v2;
+		v2 = v3;
+		v3 = temp;
+	}
+}
+
 float EdgeFunction(in vec2 p1, in vec2 p2, in vec2 test_point)
 {
 	return (test_point.x - p1.x) * (p2.y - p1.y) - (test_point.y - p1.y) * (p2.x - p1.x);
@@ -62,6 +88,7 @@ void GetTriangle2DAABB(in vec4 screenPos[3], out AABB2D aabb)
 
 bool PointInTriangle(vec2 point, vec2 v1, vec2 v2, vec2 v3)
 {
+	MakeClockwise(v1, v2, v3);
 	float d1 = EdgeFunction(v1, v2, point);
 	float d2 = EdgeFunction(v2, v3, point);
 	float d3 = EdgeFunction(v3, v1, point);
@@ -84,6 +111,7 @@ bool SegmentsIntersect(vec2 A, vec2 B, vec2 C, vec2 D)
 
 void TestPointInTriangle(in vec3 p1, in vec3 p2, in vec3 p3, vec2 test_point, out PointTriangleOrientation results)
 {
+	MakeClockwise(p1, p2, p3);
 	results.edge_function_results = vec3(EdgeFunction(p2.xy, p3.xy, test_point),
 										 EdgeFunction(p3.xy, p1.xy, test_point),
 										 EdgeFunction(p1.xy, p2.xy, test_point));
@@ -93,6 +121,8 @@ void TestPointInTriangle(in vec3 p1, in vec3 p2, in vec3 p3, vec2 test_point, ou
 	results.current_z = 1 / p1.z * b[0] + 1 / p2.z * b[1] + 1 / p3.z * b[2]; 
 
 }
+
+
 
 // DEBUG FUNCTIONS
 
