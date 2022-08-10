@@ -18,7 +18,7 @@ class RasterizerApp : App
 
 	double m_prev_mouse_x, m_prev_mouse_y;
 	float m_mouse_sensitivity = 0.1f;
-	float m_movement_speed = 0.01f;
+	float m_movement_speed = 1;
 
 	float m_yaw = 0, m_pitch = 0;
 	bool m_reset_mouse_pos = true;
@@ -37,39 +37,6 @@ public:
 	}
 	void OnKeyPress(int key, int scancode, int action, int mods) override
 	{
-		switch (key)
-		{
-			//WASD processing
-		case GLFW_KEY_W: [[fallthrough]];
-		case GLFW_KEY_UP:
-		{
-			center += m_movement_speed * forward;
-			break;
-		}
-		case GLFW_KEY_A: [[fallthrough]];
-		case GLFW_KEY_LEFT:
-		{
-			center -= m_movement_speed * glm::normalize(glm::cross(forward, up));
-			break;
-		}
-		case GLFW_KEY_S: [[fallthrough]];
-		case GLFW_KEY_DOWN:
-		{
-			center -= m_movement_speed * forward;
-			break;
-		}
-		case GLFW_KEY_D: [[fallthrough]];
-		case GLFW_KEY_RIGHT:
-		{
-			center += m_movement_speed * glm::normalize(glm::cross(forward, up));
-			break;
-		}
-		case GLFW_KEY_Q:
-		{
-			m_should_run = false;
-			break;
-		}
-		}
 		additionalOnKeyPress(key, scancode, action, mods);
 	}
 	std::function<void(int, int, int, int)> additionalOnKeyPress;
@@ -154,13 +121,35 @@ public:
 		}
 		return res;
 	}
-	/*void getTriangleAABB(glm::vec4 a, glm::vec4 b, glm::vec4 c, AABB& aabb)
+
+	void ProcessMovement(float dt)
 	{
-		glm::vec4 minV = glm::vec4(glm::min(glm::min(a, b), c));
-		glm::vec4 maxV = glm::vec4(glm::max(glm::max(a, b), c));
-		aabb.center = (minV + maxV) / 2;
-		aabb.halfDiadonal = (maxV - minV) / 2;
-	}*/
+		int upState = glfwGetKey(m_window, GLFW_KEY_W);
+		int downState = glfwGetKey(m_window, GLFW_KEY_S);
+		int leftState = glfwGetKey(m_window, GLFW_KEY_A);
+		int rightState = glfwGetKey(m_window, GLFW_KEY_D);
+		int quitState = glfwGetKey(m_window, GLFW_KEY_Q);
+		if (upState == GLFW_PRESS)
+		{
+			center += m_movement_speed * forward * dt;
+		}
+		if (downState == GLFW_PRESS)
+		{
+			center -= m_movement_speed * forward * dt;
+		}
+		if (leftState == GLFW_PRESS)
+		{
+			center -= m_movement_speed * glm::normalize(glm::cross(forward, up)) * dt;
+		}
+		if (rightState == GLFW_PRESS)
+		{
+			center += m_movement_speed * glm::normalize(glm::cross(forward, up)) * dt;
+		}
+		if (quitState == GLFW_PRESS)
+		{
+			m_should_run = false;
+		}
+	}
 	
 	//test
 	glm::ivec2 getBinForCoord(glm::vec2 coord)
@@ -312,6 +301,7 @@ public:
 			std::cout << "\n\n";
 			uint64_t now = std::chrono::steady_clock::now().time_since_epoch().count() / 1000000;
 			auto diff = now - start;
+			ProcessMovement(diff / 1000.);
 			start = now;
 			SetWindowCaption(std::string("Framerate: ") + std::to_string(diff) + " ms, " + std::to_string(1000. / diff) + " FPS");
 		}
